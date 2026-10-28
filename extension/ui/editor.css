@@ -1,0 +1,1355 @@
+/* メモ編集画面（ポップアップとサイドパネルで共通） */
+
+/* ポップアップの幅と入力欄の高さは設定で変えられる（theme.js が当てる） */
+body[data-view="popup"] {
+  width: var(--popup-width, 600px);
+}
+
+/* ポップアップは高さ 600px まで。確認や帯を出したときは、入力欄（と検索の結果・隠している覆い）を縮めて収める。
+   それでも入りきらないときは、ページ全体ではなくこの中をスクロールする
+   （ページに縦のスクロールバーが出ると、その幅の分だけ横にはみ出してしまうため） */
+body[data-view="popup"] .editor {
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+body[data-view="popup"] :is(#memo, .veil, .search-results, .preview) {
+  flex: 0 1 auto;
+  min-height: 120px;
+}
+
+body[data-view="panel"] {
+  height: 100vh;
+}
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  container-type: inline-size;
+}
+
+/* 読み上げだけに伝える文字 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+body[data-view="panel"] .editor {
+  height: 100%;
+}
+
+.tabs-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+/* メモが多いときは 3 行までにして、残りはスクロールで出す（選んでいるタブは見える位置に送る） */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  max-height: calc(32px * 3 + 4px * 2 + 4px);
+  overflow-y: auto;
+  padding: 2px;
+  margin: -2px;
+}
+
+.tab {
+  position: relative;
+  min-width: 36px;
+  min-height: 32px;
+  padding: 0 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* グループで絞り込む */
+.groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.group-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+}
+
+/* いちばん上の行：左にグループ、右に画面の切り替えと設定（タブの行の幅を使わないように、ここに置く）。
+   ポップアップが縦にいっぱいのときも縮めない（縮むとチップが切れて、スクロールバーが出る） */
+.top-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex: none;
+}
+
+.app-actions {
+  display: flex;
+  flex: none;
+  gap: 4px;
+}
+
+/* フォーカスの枠が切れないよう、タブの並びと同じく周りを 2px 空けておく */
+.groups {
+  flex: 1;
+  min-width: 0;
+  min-height: 32px;
+  align-content: center;
+  max-height: calc(28px * 2 + 4px + 4px);
+  overflow-y: auto;
+  padding: 2px;
+  margin: -2px;
+}
+
+.group-chip.has-color::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--group-color);
+}
+
+.group-chip[aria-pressed="true"],
+.group-chip[aria-pressed="true"]:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.group-name {
+  max-width: 10em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group-count {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 隠しているメモのタブの鍵 */
+.tab-lock {
+  width: 11px;
+  height: 11px;
+  margin-left: 4px;
+  vertical-align: -1px;
+}
+
+/* 文字が入っているメモには小さな印を付ける */
+.tab.has-text::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.tab[aria-selected="true"],
+.tab[aria-selected="true"]:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.tab[aria-selected="true"]::after {
+  background: var(--accent-text);
+}
+
+/* 設定で「番号と 1 行目」にしたとき */
+.tab-name {
+  display: inline-block;
+  max-width: 8em;
+  margin-left: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+/* 「すべて」を出しているとき、グループに入ったタブの下にグループの色の線 */
+.tabs .tab.in-group {
+  border-bottom: 3px solid var(--group-color);
+}
+
+/* ドラッグで並べ替えているとき */
+.tab.dragging {
+  opacity: 0.4;
+}
+
+.tab.drop-before {
+  box-shadow: -3px 0 0 var(--accent);
+}
+
+.tab.drop-after {
+  box-shadow: 3px 0 0 var(--accent);
+}
+
+.tab-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.icon-btn svg {
+  display: block;
+  margin: auto;
+}
+
+.icon-btn[aria-pressed="true"],
+.icon-btn[aria-expanded="true"] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+/* 隠しているときは、目に斜めの線 */
+.eye-slash {
+  display: none;
+}
+
+#toggle-veil[aria-pressed="true"] .eye-slash {
+  display: inline;
+}
+
+
+/* 選んでいるグループに付ける ▾（メニューを開く）。チップと 1 つのボタンに見えるようにつなげる */
+.chip-split {
+  display: inline-flex;
+}
+
+.more-button,
+.more-button:hover:not(:disabled) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  padding: 0;
+  color: var(--accent-text);
+  background: var(--accent);
+  border-color: var(--accent);
+  border-left-color: color-mix(in srgb, var(--accent-text) 35%, var(--accent));
+}
+
+.more-button:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.more-button svg {
+  width: 10px;
+  height: 10px;
+}
+
+.chip-split .group-chip {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.chip-split .more-button {
+  min-height: 28px;
+  border-radius: 0 999px 999px 0;
+  color: var(--text);
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  border-left-color: var(--border);
+}
+
+/* 「コピー」と ▾。ふつうのボタンの色のまま、1 つのボタンに見えるようにつなげる */
+.split-button {
+  display: inline-flex;
+}
+
+.split-button > button:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.split-button > .more-button,
+.split-button > .more-button:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--surface);
+  border-color: var(--border);
+  border-left: none;
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.split-button > .more-button:hover:not(:disabled) {
+  background: var(--surface-strong);
+}
+
+/* 新しいグループの名前を書く欄（「＋ グループ」の場所に出す） */
+.inline-edit {
+  height: 32px;
+  padding: 2px 8px;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+}
+
+.groups .inline-edit {
+  height: 28px;
+  border-radius: 999px;
+}
+
+/* グループの行の右端の「＋ グループ」。名前を書く欄も右端に出す */
+.group-add,
+.group-add[hidden] + .inline-edit {
+  margin-left: auto;
+}
+
+.group-add {
+  min-height: 28px;
+  padding: 0 10px;
+  color: var(--muted);
+  background: transparent;
+  border-style: dashed;
+  border-radius: 999px;
+}
+
+.group-add:hover:not(:disabled) {
+  color: var(--text);
+}
+
+/* タブを持ってきているときの、落とせるグループ */
+.group-chip.drop-target {
+  outline: 2px dashed var(--accent);
+  outline-offset: 2px;
+  background: var(--accent-soft);
+}
+
+/* タブとグループのメニュー（最前面に出す。位置は menu.js が決める） */
+.menu[popover] {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  min-width: 200px;
+  max-width: min(300px, calc(100vw - 8px));
+  padding: 4px;
+  overflow-y: auto;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.18);
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 10px;
+  text-align: left;
+  background: transparent;
+  border-color: transparent;
+}
+
+.menu-item:hover:not(:disabled),
+.menu-item:focus-visible {
+  background: var(--accent-soft);
+}
+
+.menu-item:focus-visible {
+  outline-offset: -2px;
+}
+
+.menu-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu-item kbd {
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.75rem;
+}
+
+.menu-item.menu-danger {
+  color: var(--danger);
+}
+
+.menu-separator {
+  height: 1px;
+  margin: 4px 2px;
+  background: var(--border);
+}
+
+.menu-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 10px 6px;
+}
+
+.menu-swatch,
+.menu-swatch:hover:not(:disabled) {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: var(--dot);
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+.menu-swatch[aria-checked="true"] {
+  box-shadow: 0 0 0 2px var(--text);
+}
+
+.menu-swatch:focus-visible {
+  outline-offset: 2px;
+}
+
+/* すべてのメモから探す */
+.search {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 「置換」の欄を出しているときは、押した状態に見せる */
+#replace-toggle[aria-expanded="true"] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  padding: 4px 10px;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+}
+
+.search-count {
+  color: var(--muted);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+/* 結果の欄は入力欄と同じ高さ（入力欄の高さを変えていても、探すときにポップアップの高さが変わらない） */
+.search-results {
+  height: var(--memo-height, 300px);
+  padding: 4px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.search-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.search-empty {
+  margin: 0;
+  padding: 8px;
+  color: var(--muted);
+}
+
+body[data-view="panel"] .search-results {
+  flex: 1;
+  height: auto;
+  min-height: 160px;
+}
+
+.result {
+  display: flex;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.result:hover {
+  background: var(--surface);
+}
+
+/* 選んでいる結果は、地の色に加えて左に線を引く（地の色だけでは見分けにくいため） */
+.result[aria-selected="true"] {
+  background: var(--accent-soft);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.result-memo {
+  flex: none;
+  max-width: 9em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-top: 1px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.result-line {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+mark {
+  color: inherit;
+  background: var(--mark);
+  border-radius: 2px;
+}
+
+/* 置換するときの結果。消える文字に線を引き、入る文字を並べる */
+.result-line del {
+  color: var(--muted);
+  background: var(--danger-soft);
+  border-radius: 2px;
+}
+
+.result-line ins {
+  text-decoration: none;
+  background: var(--mark);
+  border-radius: 2px;
+}
+
+/* 探している間は、入力欄の場所に結果を出す。見えていないメモをコピーしないよう、ツールバーのボタンも隠す */
+.editor.searching :is(#memo, #images, #confirm-copy, #copy-check, #links, #confirm-links, .veil, #sensitive, #suggest-veil) {
+  display: none;
+}
+
+.editor.searching .toolbar-actions {
+  visibility: hidden;
+}
+
+/* 隠しているメモは、入力欄の場所を覆う */
+.veil {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: var(--memo-height, 300px);
+  padding: 16px;
+  text-align: center;
+  background: repeating-linear-gradient(135deg, var(--surface) 0 10px, var(--bg) 10px 20px);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+}
+
+body[data-view="panel"] .veil {
+  flex: 1;
+  height: auto;
+  min-height: 160px;
+}
+
+.veil-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.veil-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.veil-note {
+  max-width: 32em;
+  margin: 0;
+  color: var(--muted);
+}
+
+.editor.veiled :is(#memo, #images, #links, #count, #sensitive, #suggest-veil) {
+  display: none;
+}
+
+/* 上に出す帯（別の PC の編集で置き換わったとき・同期の問題・容量・はじめての案内） */
+.banners {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.banners:empty {
+  display: none;
+}
+
+.alert {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--warn-soft);
+  border: 1px solid var(--warn);
+  border-radius: var(--radius);
+}
+
+.alert.info {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.alert.danger {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+}
+
+.alert > span {
+  flex: 1 1 260px;
+}
+
+.icon-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 0.9375rem;
+  line-height: 1;
+}
+
+.confirm {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--danger-soft);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+}
+
+.confirm span {
+  flex: 1 1 220px;
+}
+
+/* 削除ではない確認（許可のお願いなど） */
+.confirm.info {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+/* パスワードや個人情報についての確認とお知らせ */
+.confirm.warn {
+  background: var(--warn-soft);
+  border-color: var(--warn);
+}
+
+/* コピーの前の「AI に渡す前に確認してください」 */
+.copy-check-body {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.copy-check-list {
+  margin: 4px 0;
+  padding-left: 1.3em;
+  overflow-wrap: anywhere;
+}
+
+.copy-check-note {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+
+/* 狭いサイドパネルでも、ボタンは割らずにまとめて次の行へ回す */
+.confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* コピーの前の確認を出している間は、「隠しますか」を引っ込める（縦に長くなりすぎないように） */
+.editor:has(#copy-check:not([hidden])) #suggest-veil {
+  display: none;
+}
+
+/* 入力欄の下の「要注意」（パスワードや個人情報らしい文字） */
+.sensitive {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+.sensitive-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.sensitive-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.sensitive-chip,
+.sensitive-chip:hover:not(:disabled) {
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border-color: var(--warn);
+  background: var(--warn-soft);
+  color: var(--text);
+}
+
+.sensitive-chip:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+/* キーで「要注意」のチップを押したときの、何件目の何行目か */
+.sensitive-where {
+  color: var(--muted);
+}
+
+/* 要注意の文字があるメモのタブ（左上の三角） */
+.tab.has-sensitive::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  border-right: 4px solid transparent;
+  border-bottom: 6px solid var(--warn);
+  border-left: 4px solid transparent;
+}
+
+.tab.has-sensitive[aria-selected="true"]::before {
+  border-bottom-color: var(--accent-text);
+}
+
+#memo {
+  width: 100%;
+  height: var(--memo-height, 300px);
+  resize: vertical;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+}
+
+#memo:read-only {
+  color: var(--muted);
+}
+
+/* メモの文字の大きさ（設定の「表示」） */
+:root[data-text-size="small"] #memo {
+  font-size: 0.875rem;
+}
+
+:root[data-text-size="large"] #memo {
+  font-size: 1.125rem;
+}
+
+body[data-view="panel"] #memo {
+  flex: 1;
+  height: auto;
+  min-height: 160px;
+  resize: none;
+}
+
+/* 書式を付けて表示する欄。入力欄と同じ場所に、同じ高さ・同じ文字の大きさで出す */
+.editor.previewing #memo,
+.editor:is(.veiled, .searching) .preview {
+  display: none;
+}
+
+.preview {
+  height: var(--memo-height, 300px);
+  overflow: auto;
+  padding: 10px 12px;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--text);
+  background: var(--bg);
+  overflow-wrap: anywhere;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+}
+
+:root[data-text-size="small"] .preview {
+  font-size: 0.875rem;
+}
+
+:root[data-text-size="large"] .preview {
+  font-size: 1.125rem;
+}
+
+body[data-view="panel"] .preview {
+  flex: 1;
+  height: auto;
+  min-height: 160px;
+}
+
+.preview > :first-child {
+  margin-top: 0;
+}
+
+.preview > :last-child {
+  margin-bottom: 0;
+}
+
+.preview :is(h1, h2, h3, h4, h5, h6) {
+  margin: 1em 0 0.4em;
+  font-size: 1em;
+  line-height: 1.4;
+}
+
+.preview h1 {
+  font-size: 1.375em;
+}
+
+.preview h2 {
+  font-size: 1.2em;
+}
+
+.preview h3 {
+  font-size: 1.075em;
+}
+
+/* :where で詳細度を上げない（入れ子のリストの余白を下で 0 にするため） */
+.preview :where(p, ul, ol, blockquote, pre, .preview-table) {
+  margin: 0 0 0.75em;
+}
+
+.preview :is(ul, ol) {
+  padding-left: 1.5em;
+}
+
+.preview li > :is(ul, ol) {
+  margin: 0;
+}
+
+/* チェックボックスの項目は、点の場所にチェックボックスを置く。済んだ項目は薄くして線を引く */
+.preview li.task {
+  position: relative;
+  list-style: none;
+}
+
+.preview li.task > input {
+  position: absolute;
+  top: 0.4em;
+  left: -1.45em;
+  width: 1.05em;
+  height: 1.05em;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* 取り消し線は、画数の多い漢字に紛れないよう、文字を薄くして線を濃く太めにする */
+.preview s,
+.preview li.task > input:checked + span {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--text);
+  text-decoration-thickness: 0.08em;
+}
+
+.preview blockquote {
+  padding-left: 0.9em;
+  color: var(--muted);
+  border-left: 3px solid var(--border-strong);
+}
+
+.preview code {
+  padding: 0.1em 0.3em;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  background: var(--surface);
+  border-radius: 4px;
+}
+
+.preview pre {
+  padding: 8px 10px;
+  overflow-x: auto;
+  line-height: 1.5;
+  background: var(--surface);
+  border-radius: var(--radius);
+}
+
+.preview pre code {
+  padding: 0;
+  background: none;
+}
+
+.preview hr {
+  margin: 1em 0;
+  border: 0;
+  border-top: 1px solid var(--border-strong);
+}
+
+.preview-table {
+  overflow-x: auto;
+}
+
+.preview table {
+  border-collapse: collapse;
+}
+
+.preview :is(th, td) {
+  padding: 4px 8px;
+  border: 1px solid var(--border-strong);
+}
+
+.preview th {
+  background: var(--surface);
+}
+
+.preview a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+/* 貼った画像。押すと大きく表示する */
+.preview-image,
+.preview-image:hover:not(:disabled) {
+  display: inline-block;
+  max-width: 100%;
+  padding: 0;
+  vertical-align: top;
+  background: none;
+  cursor: zoom-in;
+}
+
+.preview-image img {
+  display: block;
+  max-width: 100%;
+  max-height: 240px;
+  border-radius: inherit;
+}
+
+.preview-empty {
+  color: var(--muted);
+}
+
+/* 貼った画像（文章の下に 1 列に並べ、多いときは横に送る。入力欄の高さを削らないため）。
+   削除の × はサムネイルの角の外に出し、フォーカスの枠も切れないよう周りを空けておく */
+.images {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.image-list {
+  display: flex;
+  gap: 22px;
+  overflow-x: auto;
+  margin: 0;
+  padding: 13px 20px 4px 3px;
+  list-style: none;
+}
+
+.image-item {
+  position: relative;
+  flex: none;
+}
+
+.thumb,
+.thumb:disabled {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 60px;
+  padding: 0;
+  overflow: hidden;
+  color: var(--muted);
+  opacity: 1;
+}
+
+/* サムネイルの左上の番号（本文の [画像 1] と同じ番号） */
+.thumb-no {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  min-width: 20px;
+  padding: 0 5px;
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 20px;
+  text-align: center;
+  background: rgb(0 0 0 / 0.65);
+  border-radius: 10px;
+  pointer-events: none;
+}
+
+.thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumb-remove,
+.thumb-remove:hover:not(:disabled) {
+  position: absolute;
+  top: -12px;
+  right: -18px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.65);
+  color: #ffffff;
+  font-size: 0.8125rem;
+  line-height: 1;
+}
+
+.thumb-remove:hover:not(:disabled) {
+  background: var(--danger);
+  color: var(--danger-text);
+}
+
+.images-note {
+  margin: 0;
+  color: var(--muted);
+}
+
+/* 画像のファイルを持ってきている間。落とせないとき（隠しているメモ・Chrome 同期）は赤い枠にする */
+.editor.dropping :is(#memo, .veil) {
+  outline: 2px dashed var(--accent);
+  outline-offset: 2px;
+}
+
+.editor.dropping.drop-blocked :is(#memo, .veil) {
+  outline-color: var(--danger);
+}
+
+.viewer {
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 24px);
+  padding: 8px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.viewer::backdrop {
+  background: rgb(0 0 0 / 0.6);
+}
+
+.viewer img {
+  display: block;
+  max-width: 100%;
+  max-height: calc(100vh - 100px);
+  margin: 0 auto;
+  object-fit: contain;
+}
+
+.viewer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-top: 8px;
+}
+
+.viewer-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.viewer-index {
+  min-width: 3.5em;
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.viewer-message {
+  flex: 1 1 120px;
+  min-width: 0;
+  color: var(--muted);
+}
+
+/* 印を付ける */
+.annotate-canvas {
+  display: block;
+  max-width: 100%;
+  max-height: calc(100vh - 110px);
+  margin: 0 auto;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.annotate-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-top: 8px;
+}
+
+.annotate-tools [aria-pressed="true"]:not(.swatch) {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.annotate-tools input {
+  flex: 1 1 160px;
+  min-width: 0;
+  height: 32px;
+  padding: 2px 8px;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+}
+
+.sizes {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.annotate-hint {
+  flex: 1 1 100%;
+  margin: 0;
+  color: var(--muted);
+}
+
+.annotate-tools .confirm {
+  flex: 1 1 100%;
+}
+
+.swatches {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.swatch,
+.swatch:hover:not(:disabled) {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+.swatch[aria-pressed="true"] {
+  box-shadow: 0 0 0 2px var(--text);
+}
+
+.swatch-red,
+.swatch-red:hover:not(:disabled) {
+  background: #e11d48;
+}
+
+.swatch-blue,
+.swatch-blue:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.swatch-yellow,
+.swatch-yellow:hover:not(:disabled) {
+  background: #facc15;
+}
+
+/* 保存とやめるは、折り返すときも一緒に右へ寄せる */
+.annotate-end {
+  display: inline-flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+/* ツールバー：左にボタン、右に文字数と同期の状態。お知らせは下の行に出すので、ボタンの位置は動かない */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+}
+
+.toolbar-info {
+  display: flex;
+  align-items: center;
+  gap: 4px 8px;
+  margin-left: auto;
+}
+
+.count {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* お知らせの行。折り返して全文を出す（うまくいったお知らせは勝手に消え、失敗は「×」で閉じるまで残る）。
+   何も無いときも 1 行分の高さを残し、出たり消えたりしてもポップアップの高さを変えない */
+.notice-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-height: 36px;
+  padding: 4px 4px 4px 10px;
+  border-left: 3px solid var(--accent);
+  background: var(--surface);
+  border-radius: var(--radius);
+}
+
+.notice-bar.empty {
+  visibility: hidden;
+}
+
+.notice-bar.busy {
+  border-left-color: var(--warn);
+}
+
+.notice-bar.error {
+  border-left-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.notice {
+  flex: 1 1 200px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.notice-bar.error .notice {
+  color: var(--danger);
+}
+
+.notice-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.notice-actions button {
+  padding: 2px 8px;
+}
+
+.notice-close,
+.notice-close:hover:not(:disabled) {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border-color: transparent;
+}
+
+.status-button,
+.status-button:hover:not(:disabled) {
+  background: transparent;
+  border-color: transparent;
+  padding: 4px 6px;
+}
+
+.status-button:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.links {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.link-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.link-more {
+  color: var(--muted);
+}
+
+.link-list a {
+  display: inline-block;
+  max-width: min(220px, 100%);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.link-list a:hover {
+  text-decoration: underline;
+}
+
+/* 狭いサイドパネル（幅 400px まで）：上のボタンを 1 行目に出し、タブは幅いっぱいに並べる。
+   リンクの「すべて開く」は一覧の下に回す */
+@container (max-width: 400px) {
+  .tabs-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .tab-actions {
+    order: -1;
+    justify-content: flex-end;
+  }
+
+  .tabs {
+    flex: none;
+  }
+
+  .links {
+    flex-direction: column;
+  }
+
+  .link-list a {
+    max-width: 100%;
+  }
+}

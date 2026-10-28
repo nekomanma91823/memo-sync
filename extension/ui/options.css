@@ -1,0 +1,669 @@
+/* 設定画面 */
+
+body {
+  background: var(--surface);
+}
+
+.page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+.page-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+h2 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+h2:focus {
+  outline: none;
+}
+
+h2:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+h3 {
+  margin: 16px 0 8px;
+  font-size: 0.875rem;
+}
+
+/* 入力欄・選ぶ欄の縁は、背景との差がはっきりした色にする */
+select,
+input[type="text"],
+textarea {
+  border-color: var(--border-strong);
+}
+
+/* 目次（狭い画面では上に横に並べ、広い画面では右に縦に並べる） */
+.toc {
+  margin-bottom: 16px;
+}
+
+.toc-title {
+  display: none;
+}
+
+.toc ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.toc a {
+  display: inline-block;
+  padding: 3px 10px;
+  color: var(--text);
+  text-decoration: none;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.toc a:hover {
+  border-color: var(--accent);
+  text-decoration: underline;
+}
+
+/* 広い画面：目次を右に見出しの一覧として縦に並べ、スクロールしても見えるようにする。
+   いま見ている欄には印を付ける（options.js の setupToc） */
+@media (min-width: 1000px) {
+  .page {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 200px;
+    column-gap: 32px;
+    max-width: 952px;
+  }
+
+  .page-head {
+    grid-column: 1 / -1;
+  }
+
+  .sections {
+    grid-column: 1;
+    grid-row: 2;
+    min-width: 0;
+  }
+
+  .toc {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: start;
+    position: sticky;
+    top: 24px;
+    margin-bottom: 0;
+  }
+
+  .toc-title {
+    display: block;
+    margin: 0 0 8px;
+    padding-left: 14px;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  .toc ul {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: 0;
+    border-left: 2px solid var(--border);
+  }
+
+  .toc a {
+    display: block;
+    margin-left: -2px;
+    padding: 5px 12px;
+    color: var(--muted);
+    background: none;
+    border: 0;
+    border-left: 2px solid transparent;
+    border-radius: 0;
+  }
+
+  .toc a:hover {
+    color: var(--text);
+    border-left-color: var(--border-strong);
+    text-decoration: none;
+  }
+
+  .toc a[aria-current="true"] {
+    color: var(--text);
+    font-weight: 600;
+    border-left-color: var(--accent);
+  }
+}
+
+.card {
+  scroll-margin-top: 12px;
+}
+
+h2[id] {
+  scroll-margin-top: 24px;
+}
+
+.card {
+  margin-bottom: 16px;
+  padding: 18px 20px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+/* 気をつけてほしいこと（設定画面に書いておく注意） */
+.caution {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  background: var(--warn-soft);
+  border-left: 3px solid var(--warn);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.caution strong {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--warn);
+}
+
+.lead,
+.hint {
+  margin: 0 0 12px;
+  color: var(--muted);
+}
+
+/* 説明の一文目の後に続ける箇条 */
+.lead:has(+ .lead-list) {
+  margin-bottom: 4px;
+}
+
+.lead-list {
+  color: var(--muted);
+}
+
+.modes {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.mode {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.mode:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.mode:has(input:disabled) {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.mode input {
+  margin-top: 3px;
+  accent-color: var(--accent);
+}
+
+.mode-body {
+  display: grid;
+  gap: 2px;
+}
+
+.mode-body span {
+  color: var(--muted);
+}
+
+.detail {
+  margin: 0 0 12px;
+  padding: 12px;
+  background: var(--surface);
+  border-radius: 8px;
+}
+
+.detail p {
+  margin-top: 0;
+}
+
+.usage {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.usage meter {
+  flex: 1;
+  height: 12px;
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* 説明の文が長くても、ボタンの文字は折り返さない */
+.status-row button {
+  flex: none;
+  white-space: nowrap;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.message {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  min-height: 1.5em;
+  margin: 8px 0 0;
+}
+
+.message details {
+  flex-basis: 100%;
+  color: var(--muted);
+}
+
+.message summary {
+  cursor: pointer;
+}
+
+.message code {
+  display: block;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+/* 改行を入れた説明 */
+.pre-line {
+  white-space: pre-line;
+}
+
+/* 同期方式を選んだときの説明と、切り替えるボタン */
+.detail.choice {
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+}
+
+/* 同期に失敗しているとき */
+.problem {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  margin: 0 0 12px;
+  padding: 12px;
+  background: var(--danger-soft);
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+}
+
+.problem p {
+  margin: 0;
+}
+
+/* その場の確認（取り消せない操作の前など） */
+.inline-confirm {
+  flex-basis: 100%;
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: var(--danger-soft);
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+}
+
+.inline-confirm p {
+  margin: 0;
+}
+
+/* 印（重なったメモなど） */
+.badge {
+  justify-self: start;
+  padding: 0 8px;
+  font-size: 0.75rem;
+  border-radius: 999px;
+}
+
+.badge.warn,
+.backup-info .badge.warn {
+  color: var(--warn);
+  background: var(--warn-soft);
+  border: 1px solid var(--warn);
+}
+
+.hint-inline {
+  margin: 0;
+  color: var(--muted);
+}
+
+/* 長い一覧の「ほか N 件を表示」 */
+.more {
+  margin-bottom: 8px;
+}
+
+.message.ok {
+  color: var(--accent);
+}
+
+.message.error {
+  color: var(--danger);
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+
+/* 取り込むファイル（ボタンで選ぶか、枠に落とす） */
+.file-drop {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+}
+
+.file-drop.dropping {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.file-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.file-picker .hint {
+  margin: 0;
+}
+
+/* 目には見えないが、読み上げとキー操作では使える */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* メモの画面の「許可する」から開いたとき */
+.permission-row.highlight {
+  padding: 10px 12px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+}
+
+.choices {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.import-list {
+  margin: 0 0 8px;
+  padding-left: 1.6em;
+  color: var(--muted);
+}
+
+.import-list li {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+hr {
+  margin: 16px 0;
+  border: none;
+  border-top: 1px solid var(--border);
+}
+
+.backup-list {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.backup-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.backup-info {
+  display: grid;
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.backup-info span {
+  color: var(--muted);
+}
+
+.backup-info .preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* バックアップの中身 */
+.backup-memos {
+  flex-basis: 100%;
+  display: grid;
+  gap: 8px;
+}
+
+.backup-memo-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.backup-memo {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  background: var(--surface);
+  border-radius: 8px;
+}
+
+.backup-memo.conflicted {
+  background: var(--warn-soft);
+  border: 1px solid var(--warn);
+}
+
+.backup-memo-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+
+.memo-preview {
+  max-height: 10em;
+  margin: 0;
+  padding: 8px;
+  overflow: auto;
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.plain {
+  margin: 0 0 12px;
+  padding-left: 1.2em;
+}
+
+.plain li {
+  margin-bottom: 4px;
+}
+
+.field + .field {
+  margin-top: 14px;
+}
+
+.shortcuts {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 6px 12px;
+  align-items: center;
+  margin: 0;
+}
+
+.shortcuts dd {
+  margin: 0;
+}
+
+/* 一覧のすぐ後ろに続く文は、少し離す */
+.shortcuts + p {
+  margin-top: 16px;
+}
+
+kbd {
+  padding: 2px 8px;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: var(--radius);
+}
+
+.buttons .hint {
+  margin: 0;
+}
+
+/* ドライブの使用量 */
+.drive-usage {
+  margin-bottom: 12px;
+}
+
+.usage-label {
+  flex: none;
+  width: 7em;
+  color: var(--muted);
+}
+
+/* テーマの色 */
+.accent-field {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.accent-field legend {
+  margin-bottom: 6px;
+  padding: 0;
+}
+
+.accent-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.accent-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.accent-choice:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.accent-choice input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.accent-choice:has(input:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.accent-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+
+.accent-green {
+  background: var(--theme-green);
+}
+
+.accent-blue {
+  background: var(--theme-blue);
+}
+
+.accent-purple {
+  background: var(--theme-purple);
+}
+
+.accent-pink {
+  background: var(--theme-pink);
+}
+
+.accent-orange {
+  background: var(--theme-orange);
+}
+
+.accent-gray {
+  background: var(--theme-gray);
+}

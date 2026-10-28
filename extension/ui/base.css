@@ -1,0 +1,176 @@
+/* すべての画面で共通の色・文字・ボタン */
+
+/* 色は light-dark() で明るい表示と暗い表示を一緒に書く。どちらになるかは color-scheme で決まり、
+   設定の「テーマ」（data-theme）で固定できる。強調の色は「テーマの色」（data-accent）で選ぶ */
+:root {
+  color-scheme: light dark;
+  --bg: light-dark(#ffffff, #1a1d21);
+  --surface: light-dark(#f3f5f7, #24282d);
+  --surface-strong: light-dark(#e5e9ed, #2e3339);
+  --border: light-dark(#d2d8de, #3b4148);
+  /* 入力欄の縁。背景との差を 3:1 以上にして、どこに書けるかが分かるようにする */
+  --border-strong: light-dark(#858f9a, #6a737c);
+  --text: light-dark(#1c2228, #e6e9ec);
+  --muted: light-dark(#5a6571, #9ba5af);
+  /* 設定の「テーマの色」6 色。明るい表示の強調の色で、設定画面の色の丸にも使う */
+  --theme-green: #187561;
+  --theme-blue: #2457c5;
+  --theme-purple: #6d3fc0;
+  --theme-pink: #c0306b;
+  --theme-orange: #b4540a;
+  --theme-gray: #3f4954;
+  --accent: light-dark(var(--theme-green), #4cc4a0);
+  --accent-hover: light-dark(#11604f, #6fd3b5);
+  --accent-text: light-dark(#ffffff, #0d1a16);
+  --accent-soft: light-dark(#e2f1ec, #1c3931);
+  --danger: light-dark(#b42318, #ff8b7b);
+  --danger-text: light-dark(#ffffff, #2a0f0b);
+  --danger-soft: light-dark(#fdeceb, #3b2220);
+  --warn: light-dark(#9a5b00, #f0b85a);
+  --warn-soft: light-dark(#fdf3e2, #3a2f1c);
+  --mark: light-dark(#fde68a, #6b5a1e);
+  --focus: light-dark(#2b6fd6, #79adff);
+  --radius: 6px;
+  font-family: system-ui, -apple-system, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
+  line-height: 1.5;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+:root[data-accent="blue"] {
+  --accent: light-dark(var(--theme-blue), #7aa7ff);
+  --accent-hover: light-dark(#1b47a6, #9dbdff);
+  --accent-text: light-dark(#ffffff, #0b1530);
+  --accent-soft: light-dark(#e4ecfb, #1d2a44);
+}
+
+:root[data-accent="purple"] {
+  --accent: light-dark(var(--theme-purple), #b493f5);
+  --accent-hover: light-dark(#5a32a3, #c8adf8);
+  --accent-text: light-dark(#ffffff, #1c1033);
+  --accent-soft: light-dark(#efe8fa, #2e2445);
+}
+
+:root[data-accent="pink"] {
+  --accent: light-dark(var(--theme-pink), #f48fb5);
+  --accent-hover: light-dark(#a3275a, #f7aac7);
+  --accent-text: light-dark(#ffffff, #33101e);
+  --accent-soft: light-dark(#fbe6ee, #42232f);
+}
+
+:root[data-accent="orange"] {
+  --accent: light-dark(var(--theme-orange), #f5a35c);
+  --accent-hover: light-dark(#964508, #f8b97f);
+  --accent-text: light-dark(#ffffff, #331a05);
+  --accent-soft: light-dark(#fbeedf, #3d2c1c);
+}
+
+:root[data-accent="gray"] {
+  --accent: light-dark(var(--theme-gray), #b8c2cc);
+  --accent-hover: light-dark(#2f3740, #cfd6dd);
+  --accent-text: light-dark(#ffffff, #14181c);
+  --accent-soft: light-dark(#e8ebee, #2c3238);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* 文字の大きさは rem で書き、Chrome の文字サイズの設定に従う（標準で 1rem = 16px）。
+   本文とボタンは 14px、メモの本文は 16px。12px は文字数・時刻・キーの表示など、数だけを出す所に限る */
+body {
+  font-size: 0.875rem;
+}
+
+button,
+select {
+  font: inherit;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: var(--surface-strong);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+button.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+button.danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--danger-text);
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* 同期の状態（丸印＋文字） */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex: none;
+}
+
+.status.ok::before {
+  background: var(--accent);
+}
+
+.status.busy::before {
+  background: var(--warn);
+}
+
+.status.error {
+  color: var(--danger);
+}
+
+.status.error::before {
+  background: var(--danger);
+}

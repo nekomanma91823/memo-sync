@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>メモシンクの設定</title>
+    <script src="theme.js"></script>
+    <link rel="stylesheet" href="base.css">
+    <link rel="stylesheet" href="options.css">
+    <script type="module" src="options.js"></script>
+  </head>
+  <body>
+    <main class="page">
+      <header class="page-head">
+        <img src="../icons/icon48.png" alt="" width="32" height="32">
+        <h1><span data-app-name>メモシンク</span>の設定</h1>
+      </header>
+
+      <nav class="toc" aria-label="この画面の目次">
+        <p class="toc-title" aria-hidden="true">目次</p>
+        <ul>
+          <li><a href="#sync-title">同期</a></li>
+          <li><a href="#display-title">表示</a></li>
+          <li><a href="#keys-title">キー操作・右クリック</a></li>
+          <li><a href="#copy-title">メモのコピー</a></li>
+          <li><a href="#import-title">取り込み・書き出し</a></li>
+          <li><a href="#backup-title">バックアップ</a></li>
+          <li><a href="#trash-title">ゴミ箱</a></li>
+          <li><a href="#about-title">このアプリについて</a></li>
+        </ul>
+      </nav>
+
+      <div class="sections">
+        <section class="card" aria-labelledby="sync-title">
+          <h2 id="sync-title" tabindex="-1">同期</h2>
+          <p class="lead">すべての PC で同じ方式を選んでください。</p>
+          <ul class="plain lead-list">
+            <li>切り替えても、この PC のメモは消えません。</li>
+            <li>切り替え先にもメモがあれば、両方が並びます。</li>
+          </ul>
+          <div class="modes" role="radiogroup" aria-labelledby="sync-title">
+            <label class="mode">
+              <input type="radio" name="mode" value="chrome">
+              <span class="mode-body">
+                <strong>Chrome の同期機能</strong>
+                <span>準備はいりません。同じ Google アカウントの Chrome どうしで同期します。容量は 100KB、日本語でおよそ 3 万字までです。画像は貼れません。</span>
+              </span>
+            </label>
+            <label class="mode">
+              <input type="radio" name="mode" value="drive">
+              <span class="mode-body">
+                <strong>Google ドライブ</strong>
+                <span>容量を気にせず使え、画像も貼れます。ドライブの中の、このアプリ専用の見えない場所に保存します。ほかのファイルは読みません。</span>
+              </span>
+            </label>
+          </div>
+
+          <div id="mode-choice" class="detail choice" hidden>
+            <p id="mode-choice-text" class="pre-line"></p>
+            <div class="buttons">
+              <button id="mode-apply" class="primary" type="button" aria-describedby="mode-choice-text"></button>
+              <button id="mode-cancel" type="button">やめる</button>
+            </div>
+          </div>
+
+          <div id="chrome-detail" class="detail" hidden>
+            <div class="usage">
+              <span id="usage-label">使用量</span>
+              <meter id="usage-meter" min="0" max="102400" low="71680" high="92160" optimum="0" aria-labelledby="usage-label usage-text"></meter>
+              <span id="usage-text"></span>
+            </div>
+            <p class="hint">メモの画面の「保存済み」は、Chrome の同期機能に渡したという意味です。ほかの PC に届かないときは、Chrome の同期と、同期する項目の「拡張機能」がオンか確かめてください。</p>
+            <button id="open-sync-settings" type="button">Chrome の同期設定を開く</button>
+          </div>
+
+          <div id="drive-detail" class="detail" hidden>
+            <p id="drive-state"></p>
+            <div id="drive-usage" class="drive-usage" hidden>
+              <div class="usage">
+                <span class="usage-label" data-app-name>メモシンク</span>
+                <span id="drive-app-usage"></span>
+              </div>
+              <div class="usage">
+                <span id="drive-total-label" class="usage-label">ドライブ全体</span>
+                <meter id="drive-meter" min="0" max="1" low="0.8" high="0.95" optimum="0" aria-labelledby="drive-total-label drive-total-usage"></meter>
+                <span id="drive-total-usage"></span>
+              </div>
+              <div id="drive-usage-message" class="message" role="status"></div>
+              <p class="hint"><span data-app-name>メモシンク</span>の使用量は、Gmail や Google フォトと同じ Google アカウントの容量に数えられます。Google ドライブの「設定」→「アプリの管理」でも確かめられます。</p>
+            </div>
+            <div id="drive-buttons" class="buttons">
+              <button id="drive-connect" class="primary" type="button">Google ドライブに接続する</button>
+              <button id="drive-disconnect" type="button">接続を解除する</button>
+              <button id="drive-usage-refresh" type="button" hidden>使用量を最新にする</button>
+            </div>
+          </div>
+          <p id="drive-unavailable" class="hint" hidden>このビルドでは Google ドライブ同期を使えません。開発者の方は、README の手順で OAuth クライアント ID を設定してください。</p>
+
+          <div id="sync-problem" class="problem" role="alert" hidden>
+            <p id="sync-problem-text"></p>
+            <button id="sync-problem-action" type="button" aria-describedby="sync-problem-text"></button>
+          </div>
+
+          <div class="status-row">
+            <span id="sync-status" class="status"></span>
+            <button id="sync-now" type="button">今すぐ同期</button>
+          </div>
+          <div id="sync-message" class="message" role="status"></div>
+        </section>
+
+        <section class="card" aria-labelledby="display-title">
+          <h2 id="display-title" tabindex="-1">表示</h2>
+          <p class="lead">この PC だけの見た目です。ほかの PC には同期しません。</p>
+          <label class="field">
+            <span>アイコンを押したとき</span>
+            <select id="open-in">
+              <option value="popup">ポップアップで開く</option>
+              <option value="panel">サイドパネルで開く</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>テーマ</span>
+            <select id="theme">
+              <option value="auto">PC の設定に合わせる</option>
+              <option value="light">明るい</option>
+              <option value="dark">暗い</option>
+            </select>
+          </label>
+          <fieldset class="field accent-field">
+            <legend>テーマの色</legend>
+            <div class="accent-choices">
+              <label class="accent-choice"><input type="radio" name="accent" value="green"><span class="accent-dot accent-green"></span>緑</label>
+              <label class="accent-choice"><input type="radio" name="accent" value="blue"><span class="accent-dot accent-blue"></span>青</label>
+              <label class="accent-choice"><input type="radio" name="accent" value="purple"><span class="accent-dot accent-purple"></span>紫</label>
+              <label class="accent-choice"><input type="radio" name="accent" value="pink"><span class="accent-dot accent-pink"></span>桃</label>
+              <label class="accent-choice"><input type="radio" name="accent" value="orange"><span class="accent-dot accent-orange"></span>橙</label>
+              <label class="accent-choice"><input type="radio" name="accent" value="gray"><span class="accent-dot accent-gray"></span>墨</label>
+            </div>
+          </fieldset>
+          <label class="field">
+            <span>メモの文字の大きさ</span>
+            <select id="text-size">
+              <option value="small">小さめ</option>
+              <option value="normal">ふつう</option>
+              <option value="large">大きめ</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>ポップアップの幅</span>
+            <select id="popup-width">
+              <option value="narrow">狭い 480px</option>
+              <option value="normal">ふつう 600px</option>
+              <option value="wide">広い 720px</option>
+              <option value="max">いちばん広い 800px</option>
+            </select>
+          </label>
+          <div class="field">
+            <span>ポップアップの入力欄の高さ</span>
+            <span id="memo-height-text" class="hint" tabindex="-1"></span>
+            <button id="memo-height-reset" type="button">元の高さに戻す</button>
+          </div>
+          <label class="field">
+            <span>「日時を入れる」で入れる書式</span>
+            <select id="time-format"></select>
+          </label>
+          <label class="field">
+            <span>タブの表示</span>
+            <select id="tab-label">
+              <option value="number">番号だけ</option>
+              <option value="title">番号と 1 行目</option>
+            </select>
+          </label>
+        </section>
+
+        <section class="card" aria-labelledby="keys-title">
+          <h2 id="keys-title" tabindex="-1">キー操作・右クリック</h2>
+          <p class="lead">ショートカットキーは Chrome の画面で変えられます。</p>
+          <dl class="shortcuts">
+            <dt>メモを開く</dt>
+            <dd><kbd id="shortcut-open"></kbd></dd>
+          </dl>
+          <div class="buttons">
+            <button id="change-shortcut" type="button">ショートカットキーを変更する</button>
+          </div>
+          <h3>メモの画面で</h3>
+          <dl class="shortcuts">
+            <dt>すべてのメモから探す</dt>
+            <dd><kbd id="shortcut-search">Ctrl+F</kbd></dd>
+            <dt>書式を付けて表示する</dt>
+            <dd><kbd id="shortcut-preview">Ctrl+E</kbd>。もう一度押すと編集に戻ります。メモの右上のボタンでも切り替えられます</dd>
+            <dt>すべてのメモで置換する</dt>
+            <dd><kbd id="shortcut-replace">Ctrl+H</kbd>。探す欄の「置換」からもできます。置換した後 10 秒間は、お知らせの「元に戻す」で戻せます</dd>
+            <dt>グループに入れる・外す</dt>
+            <dd>タブを上のグループへドラッグします。「すべて」へドラッグするとグループから外れます。グループのメニューからもできます</dd>
+            <dt>新しいグループを作る</dt>
+            <dd>グループの行の右端の「＋ グループ」から。表示中のメモがどのグループにも入っていなければ、そのメモが入ります。入っていれば、新しいメモができます</dd>
+            <dt>タブを並べ替える</dt>
+            <dd>タブをドラッグ、またはタブを選んで <kbd>Alt</kbd>+<kbd>←</kbd>／<kbd>→</kbd></dd>
+            <dt>グループのメニュー</dt>
+            <dd>グループの <kbd>▾</kbd> か右クリックで開きます。キーでは <kbd>Shift</kbd>+<kbd>F10</kbd> です。表示中のメモの出し入れ、名前と色の変更、グループをやめることができます</dd>
+            <dt>コピーの形を選ぶ</dt>
+            <dd>「コピー」の <kbd>▾</kbd> か右クリックで開きます。キーでは <kbd>Shift</kbd>+<kbd>F10</kbd> です</dd>
+            <dt>グループの名前を変える</dt>
+            <dd>グループをダブルクリックするか、グループのメニューの「名前を変える」から</dd>
+            <dt>開いている欄や確認を閉じる</dt>
+            <dd><kbd>Esc</kbd></dd>
+          </dl>
+          <h3>ほかのページで</h3>
+          <dl class="shortcuts">
+            <dt>右クリックの「選んだ文字を<span data-app-name>メモシンク</span>に送る」</dt>
+            <dd>選んだ文字を、最後に開いていたメモの末尾に足します。ページのタイトルと URL も入ります。</dd>
+          </dl>
+        </section>
+
+        <section class="card" aria-labelledby="copy-title">
+          <h2 id="copy-title" tabindex="-1">メモのコピー</h2>
+          <p class="lead">メモの画面の「コピー」で、文章と画像をまとめてコピーします。AI に渡すときの形です。</p>
+          <ul class="plain lead-list">
+            <li>画像を貼ると、書いている場所に [画像 1] のような印が入ります。サムネイルにも同じ番号が出ます。</li>
+            <li>コピーすると、印が <code>![画像 1](保存場所)</code> の形に置き換わります。画像は「ダウンロード」の memosync フォルダに保存します。</li>
+            <li>印を消した画像は、文章の最後にまとめて書き足します。</li>
+            <li>Claude Code などのコーディング AI は、その場所から画像を読めます。</li>
+          </ul>
+          <div id="copy-permission-row" class="status-row permission-row">
+            <span id="copy-permission"></span>
+            <button id="copy-permission-button" type="button" aria-describedby="copy-permission"></button>
+          </div>
+          <div id="copy-message" class="message" role="status"></div>
+          <p class="hint">ブラウザの AI に渡すときは、文章を貼り付けたあと、「ダウンロード」の memosync フォルダから画像をドラッグしてください。</p>
+          <h3>ほかの形でコピーする</h3>
+          <p>「コピー」の <kbd>▾</kbd> か右クリックで選びます。メモに Markdown で書いた書式を生かせます。</p>
+          <dl class="shortcuts">
+            <dt>書式付きでコピー</dt>
+            <dd>Slack・Google ドキュメント・Gmail などに貼ると、見出し・太字・箇条書き・チェックボックス・表・リンクが書式になります。画像も一緒に入ります。画像を受け付けない貼り先では、画像は入りません。</dd>
+            <dt>記号を外してコピー</dt>
+            <dd># や ** などの記号を外した文字だけをコピーします。LINE やフォームなど、書式を使えない所に貼るときに使います。</dd>
+          </dl>
+          <p class="hint">API キー・パスワード・秘密鍵や、メールアドレス・電話番号・カード番号・住所らしい文字があると、コピーの前に伏せるか聞きます。メモの画面では、入力欄の下に「要注意」と出します。調べるのはこの PC の中だけです。</p>
+          <p class="caution"><strong>注意</strong>画像の中は調べていません。パスワードや個人情報が写っていないか、貼る前に見てください。</p>
+        </section>
+
+        <section class="card" aria-labelledby="import-title">
+          <h2 id="import-title" tabindex="-1">取り込み・書き出し</h2>
+          <p class="lead">このアプリで書き出した .txt や .zip を取り込めます。ほかのテキストファイルは、全体を 1 件のメモとして取り込みます。</p>
+          <div id="import-drop" class="file-drop">
+            <span id="import-file-label">取り込むファイル</span>
+            <div class="file-picker">
+              <input id="import-file" class="visually-hidden" type="file" tabindex="-1" accept=".txt,.zip,text/plain,application/zip" aria-labelledby="import-file-label">
+              <button id="import-choose" type="button" aria-describedby="import-file-name">ファイルを選ぶ</button>
+              <span id="import-file-name" class="hint">まだ選んでいません。ここにファイルをドラッグしても選べます。</span>
+            </div>
+          </div>
+          <div id="import-preview" class="detail" hidden>
+            <p id="import-summary"></p>
+            <ol id="import-list" class="import-list"></ol>
+            <fieldset class="choices">
+              <legend>取り込み方</legend>
+              <label><input type="radio" name="strategy" value="replace"> 番号どおりに上書きする。ファイルのメモ 1 が、今のメモ 1 になります</label>
+              <label><input type="radio" name="strategy" value="append"> 今あるメモの後ろに足す。空のメモは飛ばします</label>
+            </fieldset>
+            <p id="import-strategy-note" class="hint"></p>
+            <div class="buttons">
+              <button id="import-run" class="primary" type="button" aria-describedby="import-strategy-note">取り込む</button>
+              <button id="import-cancel" type="button">やめる</button>
+            </div>
+          </div>
+          <div id="import-message" class="message" role="status"></div>
+          <hr>
+          <button id="export" type="button">すべてのメモを書き出す</button>
+          <p class="hint">画像が無ければ .txt、あれば文章と画像をまとめた .zip になります。どちらもここから取り込めます。隠したメモも中身が入ります。</p>
+          <div id="export-message" class="message" role="status"></div>
+        </section>
+
+        <section class="card" aria-labelledby="backup-title">
+          <h2 id="backup-title" tabindex="-1">バックアップ</h2>
+          <p class="lead">1 時間ごとと大きな変更の前に、この PC の中に自動で取ります。</p>
+          <ul class="plain lead-list">
+            <li>大きな変更は、削除・取り込み・復元・同期方式の切り替えと、同期でメモが大きく変わるときです。</li>
+            <li>入るのは文字だけです。削除した画像は「ゴミ箱」から戻せます。</li>
+            <li>「中身を見る」から、1 つのメモだけをコピーしたり戻したりできます。</li>
+          </ul>
+          <ul id="backup-list" class="backup-list"></ul>
+          <button id="backup-more" class="more" type="button" aria-expanded="false" hidden></button>
+          <p id="backup-empty" class="hint">まだバックアップはありません。</p>
+          <div id="backup-message" class="message" role="status"></div>
+        </section>
+
+        <section class="card" aria-labelledby="trash-title">
+          <h2 id="trash-title" tabindex="-1">ゴミ箱</h2>
+          <p class="lead">削除したメモと画像を、この PC に 30 日間、新しいものから 50 件まで残します。ほかの PC で削除したものも、この PC に中身があれば入ります。</p>
+          <ul id="trash-list" class="backup-list"></ul>
+          <button id="trash-more" class="more" type="button" aria-expanded="false" hidden></button>
+          <p id="trash-empty" class="hint">ゴミ箱は空です。</p>
+          <div id="trash-actions" class="buttons">
+            <button id="trash-clear" type="button">ゴミ箱を空にする</button>
+          </div>
+          <div id="trash-message" class="message" role="status"></div>
+        </section>
+
+        <section class="card" aria-labelledby="about-title">
+          <h2 id="about-title" tabindex="-1">このアプリについて</h2>
+          <ul class="plain">
+            <li>メモは、この PC と、同期先に選んだあなたの Google アカウントにだけ保存します。開発者のサーバーには送りません。</li>
+            <li>利用状況は計測していません。</li>
+            <li>PC の中のデータは暗号化していません。「隠す」も画面で見えなくするだけです。大事なパスワードやカード番号は保存しないでください。</li>
+          </ul>
+          <p id="privacy-link" class="hint" hidden><a id="privacy-policy" target="_blank" rel="noopener noreferrer">プライバシーポリシー</a></p>
+          <p class="hint">バージョン <span id="version"></span></p>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>

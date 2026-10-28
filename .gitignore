@@ -1,0 +1,11 @@
+# 拡張機能 ID の元になる秘密鍵。Git には絶対に入れない（別の安全な場所にも控えを置く）
+private/
+dist/
+node_modules/
+.DS_Store
+# 鍵や秘密の値を、ほかの場所に置いてしまったときの備え
+*.pem
+*.crx
+*.der
+.env
+.env.*

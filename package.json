@@ -1,0 +1,12 @@
+{
+  "name": "memo-sync",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "icons": "python3 tools/make_icons.py",
+    "pack": "node tools/pack.mjs",
+    "setup": "git config filter.client-id.clean 'node tools/client-id-filter.mjs clean' && git config filter.client-id.smudge 'node tools/client-id-filter.mjs smudge' && git config filter.client-id.required true"
+  },
+  "license": "MIT"
+}
