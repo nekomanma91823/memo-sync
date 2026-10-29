@@ -244,7 +244,7 @@ export class Engine {
     return visible.includes(ui?.currentId) ? ui.currentId : visible[0];
   }
 
-  // 表示中のメモの最後に文字を足す（右クリックの「メモシンクに送る」）
+  // 表示中のメモの最後に文字を足す（右クリックの「ちょこメモに送る」）
   async appendText(text) {
     if (typeof text !== 'string' || !text.trim()) throw new TypeError('送る文字がありません');
     return this.change(async (doc, now) => {

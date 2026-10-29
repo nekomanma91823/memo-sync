@@ -1,7 +1,11 @@
 {
   "appName": {
-    "message": "メモシンク",
-    "description": "拡張機能の名前（仮）。ストア・ツールバー・画面の見出しに出る。名前を変えるときはここだけを直す"
+    "message": "ちょこメモ",
+    "description": "拡張機能の名前。ツールバー・画面の見出し・右クリックのメニューに出る。名前を変えるときは storeName と一緒に直す"
+  },
+  "storeName": {
+    "message": "ちょこメモ - 同期できるメモ帳",
+    "description": "ストアと拡張機能の一覧に出る名前。appName の後ろに、探す人に向けた短い説明を足したもの"
   },
   "appDescription": {
     "message": "すぐ書ける日本語のシンプルなメモ。Chrome の同期機能か Google ドライブで、複数の PC にメモを同期します。",

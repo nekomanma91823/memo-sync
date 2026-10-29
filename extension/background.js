@@ -9,7 +9,7 @@ import { AuthError, errorText } from './lib/errors.js';
 import { readLocalDoc } from './lib/local-doc.js';
 import { displayTitle, visibleIds } from './lib/model.js';
 
-const APP_NAME = chrome.i18n.getMessage('appName') || 'メモシンク';
+const APP_NAME = chrome.i18n.getMessage('appName') || 'ちょこメモ';
 
 async function getDriveToken() {
   try {

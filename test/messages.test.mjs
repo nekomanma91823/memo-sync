@@ -59,9 +59,12 @@ test('Chrome 同期は「保存済み」、失敗したら次にすることと�
 test('名前は _locales の 1 か所で決め、manifest はそれを使う', () => {
   const manifest = JSON.parse(readFileSync(join(ext, 'manifest.json'), 'utf8'));
   const messages = JSON.parse(readFileSync(join(ext, '_locales', manifest.default_locale, 'messages.json'), 'utf8'));
-  assert.equal(manifest.name, '__MSG_appName__');
+  assert.equal(manifest.name, '__MSG_storeName__');
   assert.equal(manifest.action.default_title, '__MSG_appName__');
   assert.ok(messages.appName.message);
+  // ストアの名前は、画面の名前の後ろに説明を足したもの
+  assert.ok(messages.storeName.message.startsWith(messages.appName.message));
+  assert.ok(messages.storeName.message.length <= 75); // ストアの名前の上限
   assert.ok(messages.appDescription.message.length <= 132); // ストアの説明の上限
   // Mac では Option+Shift が記号の入力に使われるので、Control を使う
   assert.match(manifest.commands._execute_action.suggested_key.mac, /^MacCtrl\+/);

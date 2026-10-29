@@ -4,13 +4,13 @@ import { formatDateTime, formatWhen } from '../lib/time-format.js';
 
 export const MODE_LABELS = { chrome: 'Chrome の同期機能', drive: 'Google ドライブ' };
 
-// 拡張機能の名前（仮の名前なので、_locales/ja/messages.json の 1 か所で変えられるようにしている）
-export const APP_NAME = globalThis.chrome?.i18n?.getMessage('appName') || 'メモシンク';
+// 拡張機能の名前。_locales/ja/messages.json の 1 か所で変えられるようにしている
+export const APP_NAME = globalThis.chrome?.i18n?.getMessage('appName') || 'ちょこメモ';
 
 // data-app-name を付けた要素の文字と、画面の題に名前を入れる
 export function applyAppName(root = document) {
   for (const node of root.querySelectorAll('[data-app-name]')) node.textContent = APP_NAME;
-  if (root === document && document.title.includes('メモシンク')) document.title = document.title.replace('メモシンク', APP_NAME);
+  if (root === document && document.title.includes('ちょこメモ')) document.title = document.title.replace('ちょこメモ', APP_NAME);
 }
 
 // バックグラウンドに処理を頼む。起動直後で受け手がいないときは 1 回だけやり直す

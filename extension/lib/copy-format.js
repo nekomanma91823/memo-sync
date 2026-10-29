@@ -20,7 +20,7 @@ const IMAGE_MARK_RE = /\[画像 ?(\d+)\]/g;
 
 // 「ダウンロード」フォルダの中の保存先。同じメモは同じ場所に上書きし、コピーのたびにファイルが増えないようにする
 export function copyImagePath(memoId, no, type) {
-  return `memosync/memo-${memoId}/image-${no}.${IMAGE_EXTENSIONS[type] ?? 'img'}`;
+  return `chocomemo/memo-${memoId}/image-${no}.${IMAGE_EXTENSIONS[type] ?? 'img'}`;
 }
 
 // 空白やかっこを含む場所は <> で囲む（Markdown の画像の書き方が崩れないように）

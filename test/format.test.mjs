@@ -64,8 +64,8 @@ test('本文を分けても元に戻せ、絵文字の途中で切らない', ()
 
 test('コピーの文章：[画像 1] の印を Markdown の画像に置き換え、印の無い画像は最後に書き足す', () => {
   assert.equal(memoCopyText('直してほしい点\n', []), '直してほしい点\n');
-  const one = '/Users/me/Downloads/memosync/memo-abcd/image-1.webp';
-  const three = '/Users/me/Downloads/memosync/memo-abcd/image-3.png';
+  const one = '/Users/me/Downloads/chocomemo/memo-abcd/image-1.webp';
+  const three = '/Users/me/Downloads/chocomemo/memo-abcd/image-3.png';
   const files = [{ no: 1, file: one }, { no: 3, file: three }];
   // 印のある画像は、その場所に書く。画像の無い印（消した画像）はそのまま
   assert.equal(
@@ -79,9 +79,9 @@ test('コピーの文章：[画像 1] の印を Markdown の画像に置き換�
   );
   assert.equal(memoCopyText('', files.slice(0, 1)), `添付画像のファイル:\n- ![画像 1](${one})\n`);
   // 空白のある場所は <> で囲む
-  const spaced = 'C:\\Users\\Taro Yamada\\Downloads\\memosync\\memo-abcd\\image-1.png';
+  const spaced = 'C:\\Users\\Taro Yamada\\Downloads\\chocomemo\\memo-abcd\\image-1.png';
   assert.equal(memoCopyText('[画像 1]', [{ no: 1, file: spaced }]), `![画像 1](<${spaced}>)`);
   assert.equal(imageMark(2), '[画像 2]');
-  assert.equal(copyImagePath('abcd', 1, 'image/webp'), 'memosync/memo-abcd/image-1.webp');
-  assert.equal(copyImagePath('abcd', 3, 'image/jpeg'), 'memosync/memo-abcd/image-3.jpg');
+  assert.equal(copyImagePath('abcd', 1, 'image/webp'), 'chocomemo/memo-abcd/image-1.webp');
+  assert.equal(copyImagePath('abcd', 3, 'image/jpeg'), 'chocomemo/memo-abcd/image-3.jpg');
 });

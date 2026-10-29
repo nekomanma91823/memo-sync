@@ -34,7 +34,7 @@ function fileName(image) {
   const d = new Date(image.addedAt);
   const p = (n) => String(n).padStart(2, '0');
   const stamp = `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
-  return `memosync_image_${stamp}.${IMAGE_EXTENSIONS[image.type] ?? 'img'}`;
+  return `chocomemo_image_${stamp}.${IMAGE_EXTENSIONS[image.type] ?? 'img'}`;
 }
 
 // onRemoved(trashId, message) は画像を消したとき、onReplaced(newId, trashId) は印を付けて置き換えたとき（「元に戻す」を出すため）。

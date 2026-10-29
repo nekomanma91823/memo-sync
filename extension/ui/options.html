@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>メモシンクの設定</title>
+    <title>ちょこメモの設定</title>
     <script src="theme.js"></script>
     <link rel="stylesheet" href="base.css">
     <link rel="stylesheet" href="options.css">
@@ -13,7 +13,7 @@
     <main class="page">
       <header class="page-head">
         <img src="../icons/icon48.png" alt="" width="32" height="32">
-        <h1><span data-app-name>メモシンク</span>の設定</h1>
+        <h1><span data-app-name>ちょこメモ</span>の設定</h1>
       </header>
 
       <nav class="toc" aria-label="この画面の目次">
@@ -77,7 +77,7 @@
             <p id="drive-state"></p>
             <div id="drive-usage" class="drive-usage" hidden>
               <div class="usage">
-                <span class="usage-label" data-app-name>メモシンク</span>
+                <span class="usage-label" data-app-name>ちょこメモ</span>
                 <span id="drive-app-usage"></span>
               </div>
               <div class="usage">
@@ -86,7 +86,7 @@
                 <span id="drive-total-usage"></span>
               </div>
               <div id="drive-usage-message" class="message" role="status"></div>
-              <p class="hint"><span data-app-name>メモシンク</span>の使用量は、Gmail や Google フォトと同じ Google アカウントの容量に数えられます。Google ドライブの「設定」→「アプリの管理」でも確かめられます。</p>
+              <p class="hint"><span data-app-name>ちょこメモ</span>の使用量は、Gmail や Google フォトと同じ Google アカウントの容量に数えられます。Google ドライブの「設定」→「アプリの管理」でも確かめられます。</p>
             </div>
             <div id="drive-buttons" class="buttons">
               <button id="drive-connect" class="primary" type="button">Google ドライブに接続する</button>
@@ -209,7 +209,7 @@
           </dl>
           <h3>ほかのページで</h3>
           <dl class="shortcuts">
-            <dt>右クリックの「選んだ文字を<span data-app-name>メモシンク</span>に送る」</dt>
+            <dt>右クリックの「選んだ文字を<span data-app-name>ちょこメモ</span>に送る」</dt>
             <dd>選んだ文字を、最後に開いていたメモの末尾に足します。ページのタイトルと URL も入ります。</dd>
           </dl>
         </section>
@@ -219,7 +219,7 @@
           <p class="lead">メモの画面の「コピー」で、文章と画像をまとめてコピーします。AI に渡すときの形です。</p>
           <ul class="plain lead-list">
             <li>画像を貼ると、書いている場所に [画像 1] のような印が入ります。サムネイルにも同じ番号が出ます。</li>
-            <li>コピーすると、印が <code>![画像 1](保存場所)</code> の形に置き換わります。画像は「ダウンロード」の memosync フォルダに保存します。</li>
+            <li>コピーすると、印が <code>![画像 1](保存場所)</code> の形に置き換わります。画像は「ダウンロード」の chocomemo フォルダに保存します。</li>
             <li>印を消した画像は、文章の最後にまとめて書き足します。</li>
             <li>Claude Code などのコーディング AI は、その場所から画像を読めます。</li>
           </ul>
@@ -228,7 +228,7 @@
             <button id="copy-permission-button" type="button" aria-describedby="copy-permission"></button>
           </div>
           <div id="copy-message" class="message" role="status"></div>
-          <p class="hint">ブラウザの AI に渡すときは、文章を貼り付けたあと、「ダウンロード」の memosync フォルダから画像をドラッグしてください。</p>
+          <p class="hint">ブラウザの AI に渡すときは、文章を貼り付けたあと、「ダウンロード」の chocomemo フォルダから画像をドラッグしてください。</p>
           <h3>ほかの形でコピーする</h3>
           <p>「コピー」の <kbd>▾</kbd> か右クリックで選びます。メモに Markdown で書いた書式を生かせます。</p>
           <dl class="shortcuts">

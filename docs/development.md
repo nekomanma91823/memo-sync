@@ -17,9 +17,9 @@ Git の設定を 1 つ足します。`extension/manifest.json` の OAuth クラ�
 1. Chrome で `chrome://extensions` を開く
 2. 右上の「デベロッパー モード」をオンにする
 3. 「パッケージ化されていない拡張機能を読み込む」で `extension` フォルダを選ぶ
-4. ツールバーのパズルのアイコンから、メモシンクをピン留めする
+4. ツールバーのパズルのアイコンから、ちょこメモをピン留めする
 
-コードを変えたら、`chrome://extensions` のメモシンクの「再読み込み」ボタンを押します。
+コードを変えたら、`chrome://extensions` のちょこメモの「再読み込み」ボタンを押します。
 
 `manifest.json` に公開鍵の `key` を入れてあるので、どの PC で読み込んでも拡張機能 ID は `hginhpfnpmeapbkbdohpelmdcdgppjhi` になります。
 Chrome 同期のデータも Google のログイン設定もこの ID に結び付くので、PC ごとに ID が変わると同期できません。

@@ -26,7 +26,7 @@ const cleanText = (input) => String(input).replace(/^\uFEFF/, '').replace(/\r\n?
 export function backupFileName(date = new Date(), extension = 'txt') {
   const p = (n) => String(n).padStart(2, '0');
   const stamp = `${date.getFullYear()}${p(date.getMonth() + 1)}${p(date.getDate())}_${p(date.getHours())}${p(date.getMinutes())}${p(date.getSeconds())}`;
-  return `memosync_${stamp}.${extension}`;
+  return `chocomemo_${stamp}.${extension}`;
 }
 
 const MEMOS_FILE = 'memos.txt';

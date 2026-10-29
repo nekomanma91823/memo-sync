@@ -5,7 +5,7 @@
 - [ ] 公開に使う Google アカウントに、パスキーかセキュリティキーで 2 段階認証をかける。乗っ取られると、全利用者に不正な更新を配られてしまうため
 - [ ] [Chrome ウェブストアのデベロッパー ダッシュボード](https://chrome.google.com/webstore/devconsole)に登録する。登録料は 5 ドル
 - [ ] `docs/privacy-policy.md` の「未定」を埋めて、公開の URL に置く。ストアと Google の OAuth 設定の両方で必要
-- [ ] 名前を決めたら、`extension/_locales/ja/messages.json` の `appName` を変える。画面の名前もここから入る
+- [x] 名前を「ちょこメモ」に決めた。名前を変えるときは、`extension/_locales/ja/messages.json` の `appName` と `storeName` を直す。`storeName` はストアと拡張機能の一覧に出る名前で、`appName` は画面に出る名前
 - [ ] プライバシーポリシーの URL が決まったら、`extension/ui/options.js` の `PRIVACY_POLICY_URL` に入れる。設定画面にリンクが出る
 
 ## 提出
