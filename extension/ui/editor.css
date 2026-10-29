@@ -190,16 +190,19 @@ body[data-view="panel"] .editor {
   border-bottom: 3px solid var(--group-color);
 }
 
-/* ドラッグで並べ替えているとき */
-.tab.dragging {
+/* タブやグループをドラッグで並べ替えているとき */
+.tab.dragging,
+.group-chip.dragging {
   opacity: 0.4;
 }
 
-.tab.drop-before {
+.tab.drop-before,
+.group-chip.drop-before {
   box-shadow: -3px 0 0 var(--accent);
 }
 
-.tab.drop-after {
+.tab.drop-after,
+.group-chip.drop-after {
   box-shadow: 3px 0 0 var(--accent);
 }
 
@@ -229,11 +232,7 @@ body[data-view="panel"] .editor {
 }
 
 
-/* 選んでいるグループに付ける ▾（メニューを開く）。チップと 1 つのボタンに見えるようにつなげる */
-.chip-split {
-  display: inline-flex;
-}
-
+/* 「コピー」の ▾（メニューを開く） */
 .more-button,
 .more-button:hover:not(:disabled) {
   display: inline-flex;
@@ -254,20 +253,6 @@ body[data-view="panel"] .editor {
 .more-button svg {
   width: 10px;
   height: 10px;
-}
-
-.chip-split .group-chip {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-}
-
-.chip-split .more-button {
-  min-height: 28px;
-  border-radius: 0 999px 999px 0;
-  color: var(--text);
-  background: var(--accent-soft);
-  border-color: var(--accent);
-  border-left-color: var(--border);
 }
 
 /* 「コピー」と ▾。ふつうのボタンの色のまま、1 つのボタンに見えるようにつなげる */

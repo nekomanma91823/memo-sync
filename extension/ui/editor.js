@@ -13,7 +13,8 @@
 //
 // タブは番号だけ。グループはタブの上の行に並べ、タブを上のグループにドラッグすると入る（「すべて」に落とすと外れる）。
 // 新しいグループは行の右端の「＋ グループ」から作り、表示中のメモを入れる（その場で名前を書く。inline-edit.js）。
-// グループの色とやめるは、グループの ▾ か右クリックで出すメニュー（menu.js）から。
+// グループの色・並べ替え・やめるは、グループの右クリックで出すメニュー（menu.js）から。
+// グループもタブと同じく、ドラッグか Alt + ←／→ で並べ替えられる（並びは lib/group-order.js）。
 
 import {
   MAX_GROUP_LENGTH,
@@ -32,6 +33,7 @@ import { MEMO_PREFIX, docFromParts, memoKey } from '../lib/local-doc.js';
 import { extractLinks, linkLabel } from '../lib/links.js';
 import { formatTimestamp, formatWhen } from '../lib/time-format.js';
 import { GROUP_COLORS, GROUP_COLOR_KEY, assignGroupColors, readGroupColors, renameGroupColor } from '../lib/group-colors.js';
+import { GROUP_ORDER_KEY, placeGroup, readGroupOrder, renameGroupOrder, sortGroups, stepGroup } from '../lib/group-order.js';
 import { errorText } from '../lib/errors.js';
 import { APP_NAME, MODE_LABELS, applyAppName, describeProblem, describeStatus, firstLine, send } from './common.js';
 import { createImageStrip } from './images.js';
@@ -101,7 +103,8 @@ const state = {
   group: null, // 絞り込んでいるグループ（null はすべて）
   visible: [],
   shown: [], // タブに出しているメモ（グループで絞り込んだもの）
-  groups: [], // グループの名前（並んでいる順）
+  groups: [], // グループの名前（画面に並べる順）
+  groupOrder: [], // 並べ替えたグループの順（Chrome の同期機能に置く）
   revealedId: null, // 隠しているメモのうち、今だけ「表示する」を押したもの
   preview: false, // 書式を付けて表示している間。画面を開くたびに編集から始める
   groupColors: {}, // 自分で選んだグループの色（Chrome の同期機能に置く）
@@ -228,6 +231,7 @@ async function init() {
   state.ready = true;
   focusEditor();
   loadGroupColors();
+  loadGroupOrder();
   await showShortcuts();
   renderOnboarding(base.onboarding);
   checkSyncUsage();
@@ -265,6 +269,7 @@ window.addEventListener('focus', liveSync);
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'sync' && changes[GROUP_COLOR_KEY]) loadGroupColors();
+  if (area === 'sync' && changes[GROUP_ORDER_KEY]) loadGroupOrder();
   if (area !== 'local' || !state.ready) return;
   strip.onStorageChange(changes);
   // 届いた変更で今のメモが消えたときに、何番のどのメモだったかを知らせるため
@@ -353,8 +358,10 @@ function renderTabs() {
   const visible = visibleIds(state.doc);
   state.visible = visible;
   state.shown = shownIds();
-  state.groups = groupNames(state.doc);
-  state.colorMap = assignGroupColors(state.groups, state.groupColors);
+  const natural = groupNames(state.doc);
+  state.groups = sortGroups(natural, state.groupOrder);
+  // 色はメモの並びの順で割り当てる（グループを並べ替えても色が変わらないように）
+  state.colorMap = assignGroupColors(natural, state.groupColors);
   el.add.disabled = visible.length >= MAX_MEMOS;
   el.add.title = el.add.disabled ? `メモは ${MAX_MEMOS} 個までです` : 'メモを追加';
   el.remove.disabled = visible.length <= MIN_MEMOS;
@@ -397,31 +404,7 @@ function renderTabs() {
 const tabButton = (id) => el.tabs.querySelector(`.tab[data-id="${id}"]`);
 const groupChipButton = (name) => [...el.groups.querySelectorAll('.group-chip')].find((chip) => chip.dataset.group === name);
 
-// 選んでいるグループのチップに付ける ▾（メニューを開く）。キーでは Shift+F10 で開くので、読み上げからは外す
-function moreButton(title, onClick) {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'more-button';
-  button.title = title;
-  button.tabIndex = -1;
-  button.setAttribute('aria-hidden', 'true');
-  const ns = 'http://www.w3.org/2000/svg';
-  const svg = document.createElementNS(ns, 'svg');
-  svg.setAttribute('viewBox', '0 0 10 10');
-  const path = document.createElementNS(ns, 'path');
-  for (const [name, value] of Object.entries({ d: 'M2 3.5 5 6.5 8 3.5', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.6, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })) {
-    path.setAttribute(name, value);
-  }
-  svg.append(path);
-  button.append(svg);
-  button.addEventListener('click', (event) => {
-    event.stopPropagation();
-    onClick();
-  });
-  return button;
-}
-
-// グループの色。自分で選んでいなければ、並んでいる順に割り当てる（lib/group-colors.js）
+// グループの色。自分で選んでいなければ、メモの並びの順に割り当てる（lib/group-colors.js）
 function groupColor(name) {
   return GROUP_COLORS[state.colorMap[name]]?.hex ?? GROUP_COLORS.gray.hex;
 }
@@ -443,6 +426,31 @@ async function saveGroupColors(colors) {
   } catch (error) {
     showNotice(errorText(error, 'グループの色を保存できませんでした。'), 'error');
   }
+}
+
+async function loadGroupOrder() {
+  try {
+    state.groupOrder = await readGroupOrder(chrome.storage.sync);
+  } catch {
+    state.groupOrder = [];
+  }
+  renderTabs();
+}
+
+async function saveGroupOrder(order, { render = true } = {}) {
+  state.groupOrder = order;
+  if (render) renderTabs();
+  try {
+    await chrome.storage.sync.set({ [GROUP_ORDER_KEY]: order });
+  } catch (error) {
+    showNotice(errorText(error, 'グループの並びを保存できませんでした。'), 'error');
+  }
+}
+
+// next は画面に並べるグループの新しい順。変わったときだけ保存する
+function reorderGroups(next) {
+  if (next.every((name, i) => name === state.groups[i])) return;
+  saveGroupOrder(next);
 }
 
 // タブの上に「すべて」と各グループを並べ、右端に「＋ グループ」を置く（グループが無いときはボタンだけ）
@@ -533,42 +541,47 @@ function groupChip(group, label, count) {
   button.addEventListener('click', () => setGroup(group));
   // タブをここに落とすと、このグループに入る。「すべて」に落とすとグループから外れる
   button.addEventListener('dragover', (event) => {
-    if (!draggingId) return;
+    if (!isTabDrag(event)) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
     button.classList.add('drop-target');
   });
   button.addEventListener('dragleave', () => button.classList.remove('drop-target'));
   button.addEventListener('drop', (event) => {
-    if (!draggingId) return;
+    if (!isTabDrag(event)) return;
     event.preventDefault();
     button.classList.remove('drop-target');
-    moveToGroup(draggingId, group ?? '');
+    const id = draggingId;
+    draggingId = null;
+    moveToGroup(id, group ?? '');
   });
   if (!group) {
     button.title = 'すべてのメモを出す\nタブをここにドラッグすると、グループから外れます';
     return button;
   }
   button.dataset.group = group;
+  button.draggable = true;
   button.classList.add('has-color');
   button.style.setProperty('--group-color', groupColor(group));
-  button.title = `「${group}」のメモだけを出す\nダブルクリック：名前を変える\n右クリックか ▾：メモを入れる・外す、名前や色を変える、グループをやめる\nタブをここにドラッグすると、このグループに入ります`;
+  button.title = `「${group}」のメモだけを出す\nダブルクリック：名前を変える\n右クリック：メモを入れる・外す、並べ替える、名前や色を変える、グループをやめる\nドラッグか Alt+←→：並べ替え\nタブをここにドラッグすると、このグループに入ります`;
   button.setAttribute('aria-label', `グループ「${group}」のメモ ${count} 件だけを出す`);
-  button.setAttribute('aria-description', 'Shift+F10 でメニューを開く。表示中のメモを入れる・外す、名前や色を変える');
+  button.setAttribute('aria-description', 'Shift+F10 でメニューを開く。Alt と左右の矢印で並べ替える');
   button.addEventListener('contextmenu', (event) => {
     event.preventDefault();
     openGroupMenu(group);
   });
   button.addEventListener('keydown', (event) => {
+    // Alt + ←→ で並べ替え
+    if (event.altKey && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+      event.preventDefault();
+      reorderGroups(stepGroup(state.groups, group, event.key === 'ArrowLeft' ? -1 : 1));
+      return;
+    }
     if (!isMenuKey(event)) return;
     event.preventDefault();
     openGroupMenu(group);
   });
-  if (state.group !== group) return button;
-  const split = document.createElement('span');
-  split.className = 'chip-split';
-  split.append(button, moreButton('メモを入れる・外す、名前や色を変える、グループをやめる', () => openGroupMenu(group, split)));
-  return split;
+  return button;
 }
 
 function setGroup(group) {
@@ -682,6 +695,10 @@ function closeBar(box, returnTo = null) {
 const TAB_TYPE = 'application/x-memo-sync-tab';
 let draggingId = null;
 
+// ドラッグしているのがこの画面のタブか。落とした後にタブを作り直すと、元のタブに dragend が届かず
+// draggingId が残ることがあるので、ドラッグの中身の種類でも確かめる
+const isTabDrag = (event) => !!draggingId && !!event.dataTransfer?.types.includes(TAB_TYPE);
+
 function clearDropMarks({ keepDragging = false } = {}) {
   for (const tab of el.tabs.querySelectorAll('.tab')) {
     tab.classList.remove('drop-before', 'drop-after');
@@ -692,7 +709,7 @@ function clearDropMarks({ keepDragging = false } = {}) {
 // ドラッグ中のタブを、どのタブの前（または後ろ）に入れるか
 function dropTarget(event) {
   const tab = event.target.closest?.('.tab');
-  if (!tab || !draggingId || tab.dataset.id === draggingId) return null;
+  if (!tab || !isTabDrag(event) || tab.dataset.id === draggingId) return null;
   const rect = tab.getBoundingClientRect();
   return { tab, after: event.clientX > rect.left + rect.width / 2 };
 }
@@ -743,12 +760,72 @@ el.tabs.addEventListener('drop', (event) => {
   event.preventDefault();
   const ids = state.shown.filter((id) => id !== draggingId);
   ids.splice(ids.indexOf(target.tab.dataset.id) + (target.after ? 1 : 0), 0, draggingId);
+  draggingId = null;
   applyOrder(ids);
 });
 
 el.tabs.addEventListener('dragend', () => {
   draggingId = null;
   clearDropMarks();
+});
+
+// ---- グループの並べ替え（ドラッグ）。「すべて」は左端のまま動かさない ----
+
+const GROUP_TYPE = 'application/x-memo-sync-group';
+let draggingGroup = null;
+
+// タブと同じく、落とした後に作り直したチップには dragend が届かないので、中身の種類でも確かめる
+const isGroupDrag = (event) => draggingGroup !== null && !!event.dataTransfer?.types.includes(GROUP_TYPE);
+
+function clearGroupDropMarks({ keepDragging = false } = {}) {
+  for (const chip of el.groups.querySelectorAll('.group-chip')) {
+    chip.classList.remove('drop-before', 'drop-after');
+    if (!keepDragging) chip.classList.remove('dragging');
+  }
+}
+
+// ドラッグ中のグループを、どのグループの前（または後ろ）に入れるか
+function groupDropTarget(event) {
+  const chip = event.target.closest?.('.group-chip[data-group]');
+  if (!chip || !isGroupDrag(event) || chip.dataset.group === draggingGroup) return null;
+  const rect = chip.getBoundingClientRect();
+  return { chip, after: event.clientX > rect.left + rect.width / 2 };
+}
+
+el.groups.addEventListener('dragstart', (event) => {
+  const chip = event.target.closest?.('.group-chip[data-group]');
+  if (!chip) return;
+  draggingGroup = chip.dataset.group;
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData(GROUP_TYPE, draggingGroup);
+  chip.classList.add('dragging');
+});
+
+el.groups.addEventListener('dragover', (event) => {
+  const target = groupDropTarget(event);
+  if (!target) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+  clearGroupDropMarks({ keepDragging: true });
+  target.chip.classList.add(target.after ? 'drop-after' : 'drop-before');
+});
+
+el.groups.addEventListener('dragleave', (event) => {
+  if (!el.groups.contains(event.relatedTarget)) clearGroupDropMarks({ keepDragging: true });
+});
+
+el.groups.addEventListener('drop', (event) => {
+  const target = groupDropTarget(event);
+  if (!target) return;
+  event.preventDefault();
+  const name = draggingGroup;
+  draggingGroup = null;
+  reorderGroups(placeGroup(state.groups, name, target.chip.dataset.group, target.after));
+});
+
+el.groups.addEventListener('dragend', () => {
+  draggingGroup = null;
+  clearGroupDropMarks();
 });
 
 // グループをダブルクリックすると名前を変える。1 回目のクリックでチップが作り直されても届くように、行で受ける
@@ -1253,16 +1330,18 @@ function moveToGroup(id, group) {
   else showNotice(text);
 }
 
-// グループの ▾・右クリック・Shift+F10 で開くメニュー。表示中のメモを入れる・外す、色を選ぶ、名前を変える、グループをやめる。
-// ドラッグできない人も、ここからメモをグループに出し入れできる
-function openGroupMenu(name, anchor = null) {
+// グループの右クリック・Shift+F10 で開くメニュー。表示中のメモを入れる・外す、色を選ぶ、並べ替える、名前を変える、グループをやめる。
+// ドラッグできない人も、ここからメモをグループに出し入れし、グループを並べ替えられる
+function openGroupMenu(name) {
   const chip = groupChipButton(name);
   if (!chip) return;
   const id = state.currentId;
   const number = state.visible.indexOf(id) + 1;
   const inGroup = state.doc.memos[id]?.group === name;
+  const index = state.groups.indexOf(name);
+  const alt = isMac ? 'Option' : 'Alt';
   menu.open(
-    anchor ?? chip,
+    chip,
     [
       inGroup
         ? { type: 'item', label: `メモ ${number} をグループから外す`, onSelect: () => moveToGroup(id, '') }
@@ -1275,6 +1354,9 @@ function openGroupMenu(name, anchor = null) {
         onSelect: (key) => saveGroupColors({ ...state.groupColors, [name]: key }),
       },
       { type: 'separator' },
+      { type: 'item', label: '左へ動かす', shortcut: `${alt}+←`, disabled: index <= 0, onSelect: () => reorderGroups(stepGroup(state.groups, name, -1)) },
+      { type: 'item', label: '右へ動かす', shortcut: `${alt}+→`, disabled: index >= state.groups.length - 1, onSelect: () => reorderGroups(stepGroup(state.groups, name, 1)) },
+      { type: 'separator' },
       { type: 'item', label: '名前を変える', onSelect: () => renameGroupInline(name) },
       { type: 'item', label: 'グループをやめる', onSelect: () => dissolveGroup(name) },
     ],
@@ -1282,14 +1364,14 @@ function openGroupMenu(name, anchor = null) {
   );
 }
 
-// グループのチップの場所で、名前を書き換える（▾ も隠して欄だけにする）
+// グループのチップの場所で、名前を書き換える
 function renameGroupInline(name) {
   const chip = groupChipButton(name);
   if (!chip) return;
   let shown = name;
   menu.close({ focus: false });
   state.inlineEditing = true;
-  editInline(chip.closest('.chip-split') ?? chip, {
+  editInline(chip, {
     value: name,
     maxLength: MAX_GROUP_LENGTH,
     label: `グループ「${name}」の新しい名前`,
@@ -1316,6 +1398,8 @@ function renameGroup(from, to) {
     if (state.doc.memos[id].group === from) setLocalLabel(id, { group: to });
   }
   saveUi();
+  // 並べ替えた場所と選んだ色は、新しい名前に引き継ぐ
+  if (state.groupOrder.includes(from)) saveGroupOrder(renameGroupOrder(state.groupOrder, from, to), { render: false });
   if (state.groupColors[from]) saveGroupColors(renameGroupColor(state.groupColors, from, to));
   else renderTabs();
   send('renameGroup', { from, to })
