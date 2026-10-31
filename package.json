@@ -5,8 +5,15 @@
   "scripts": {
     "test": "node --test test/*.test.mjs",
     "icons": "python3 tools/make_icons.py",
+    "vendor": "node tools/build-vendor.mjs",
     "pack": "node tools/pack.mjs",
     "setup": "git config filter.client-id.clean 'node tools/client-id-filter.mjs clean' && git config filter.client-id.smudge 'node tools/client-id-filter.mjs smudge' && git config filter.client-id.required true"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@codemirror/commands": "6.11.1",
+    "@codemirror/state": "6.7.6",
+    "@codemirror/view": "6.43.14",
+    "esbuild": "0.28.2"
+  }
 }

@@ -12,9 +12,9 @@ const CACHE_SIZE = 200;
 const TYPING_DELAY = 300;
 const $ = (id) => document.getElementById(id);
 
-// getMemo() は { memoId, hidden }（hidden は「隠す」にしたメモか）。onHide(memoId) でメモを隠す。
-// onJump() は見つけた場所を選ぶ前に呼ぶ
-export function createSensitiveBar({ textarea, getMemo, scrollToOffset, onHide, onJump }) {
+// textarea は入力欄。value・setSelectionRange・focus を使う（書式を付けて表示している間は、その入力欄につなぐもの）。
+// getMemo() は { memoId, hidden }（hidden は「隠す」にしたメモか）。onHide(memoId) でメモを隠す
+export function createSensitiveBar({ textarea, getMemo, scrollToOffset, onHide }) {
   const el = {
     bar: $('sensitive'),
     list: $('sensitive-list'),
@@ -82,7 +82,6 @@ export function createSensitiveBar({ textarea, getMemo, scrollToOffset, onHide, 
   // 同じ種類を押すたびに、次の場所を選ぶ
   function select(kind, { keyboard = false } = {}) {
     refresh();
-    onJump?.(); // 書式を付けて表示している間は、編集に戻してから場所を選ぶ
     const items = shown.findings.filter((found) => found.kind === kind);
     if (!items.length) return;
     cursor = { kind, index: cursor.kind === kind ? (cursor.index + 1) % items.length : 0 };

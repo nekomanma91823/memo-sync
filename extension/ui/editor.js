@@ -7,6 +7,8 @@
 // グループで絞り込んでいるときは、そのグループのタブだけを出す（番号は全体での番号のまま）。
 // 「隠す」にしたメモは、「表示する」を押すまで中身を出さない。別のメモに移るか画面を閉じると、また隠す。
 // パスワード・API キー・個人情報らしい文字は、入力欄の下とタブに印を出す（sensitive-bar.js）。
+// 「書式を付けて表示」の間は、記号のまま表示する入力欄の代わりに、書式を付けたまま書ける入力欄を出す（live-editor.js）。
+// 本文はどちらの間も el.memo.value に持つ（保存・コピー・検索はそれを読む）。
 //
 // お知らせはツールバーの下の行（notice.js）、同期の問題やはじめての案内は上の帯に出す。
 // 出したもの（確認・帯・メニュー）は、どれも Esc で閉じられる。
@@ -38,8 +40,8 @@ import { errorText } from '../lib/errors.js';
 import { APP_NAME, MODE_LABELS, applyAppName, describeProblem, describeStatus, firstLine, send } from './common.js';
 import { createImageStrip } from './images.js';
 import { createSearch } from './search.js';
-import { createPreview } from './preview.js';
-import { toggleTask } from '../lib/markdown.js';
+import { createLiveEditor } from './live-editor.js';
+import { applyChanges, indentLines, toggleInline } from '../lib/edit-keys.js';
 import { createMemoCopy } from './memo-copy.js';
 import { createSensitiveBar } from './sensitive-bar.js';
 import { createNotices } from './notice.js';
@@ -55,7 +57,7 @@ const el = {
   openSearch: $('open-search'),
   toggleVeil: $('toggle-veil'),
   togglePreview: $('toggle-preview'),
-  preview: $('preview'),
+  live: $('live'),
   tabMenu: $('tab-menu'),
   veil: $('veil'),
   veilShow: $('veil-show'),
@@ -106,7 +108,7 @@ const state = {
   groups: [], // グループの名前（画面に並べる順）
   groupOrder: [], // 並べ替えたグループの順（Chrome の同期機能に置く）
   revealedId: null, // 隠しているメモのうち、今だけ「表示する」を押したもの
-  preview: false, // 書式を付けて表示している間。画面を開くたびに編集から始める
+  live: false, // 書式を付けて表示している間。前に閉じたときの表示で始める
   groupColors: {}, // 自分で選んだグループの色（Chrome の同期機能に置く）
   colorMap: {}, // 今出しているグループの色（選んでいないものも含む）
   inlineEditing: false, // タブやグループの名前をその場で書き換えている間（その間はタブを作り直さない）
@@ -132,19 +134,42 @@ const state = {
 
 // ---- 部品 ----
 
-const notices = createNotices();
+const notices = createNotices({ focusEditor: () => focusEditor() });
 const showNotice = (text, tone, options) => notices.show(text, tone, options);
 
 function openSettings(anchor = '') {
   chrome.tabs.create({ url: chrome.runtime.getURL(`ui/options.html${anchor ? `#${anchor}` : ''}`) });
 }
 
-const preview = createPreview({
-  getText: () => el.memo.value,
-  onToggleTask,
+const live = createLiveEditor({
+  parent: el.live,
+  maxLength: MAX_TEXT_LENGTH,
+  onChange: (text) => {
+    el.memo.value = text;
+    onInput();
+  },
+  onSelect: () => updateCount(),
+  onTooLong: () => showNotice(`1 つのメモは ${MAX_TEXT_LENGTH.toLocaleString()} 文字までです。それより後ろは入りません`, 'error'),
   imageUrl: (no) => strip.imageUrl(no),
   openImage: (no) => strip.openImage(no),
+  openLink: (href) => chrome.tabs.create({ url: href }),
+  onCompositionEnd: () => {
+    if (!state.pendingExternal) return;
+    state.pendingExternal = false;
+    applyExternal();
+  },
 });
+// sensitive-bar.js などが、どちらの入力欄でも同じように場所を選べるようにする
+const memoInput = {
+  get value() {
+    return el.memo.value;
+  },
+  setSelectionRange(start, end) {
+    if (state.live) live.select(start, end, { focus: false });
+    else el.memo.setSelectionRange(start, end);
+  },
+  focus: () => focusEditor(),
+};
 const strip = createImageStrip({
   view,
   showNotice,
@@ -155,7 +180,7 @@ const strip = createImageStrip({
   openSettings: () => openSettings('sync-title'),
   focusEditor: () => focusEditor(),
   insertText: (text) => insertText(text),
-  onPaint: () => refreshPreview(),
+  onPaint: () => repaintLive(),
 });
 const search = createSearch({
   getDoc: () => state.doc,
@@ -176,11 +201,13 @@ const memoCopy = createMemoCopy({
   openMenu: (...args) => menu.open(...args),
 });
 const sensitive = createSensitiveBar({
-  textarea: el.memo,
+  textarea: memoInput,
   getMemo: () => ({ memoId: state.currentId, hidden: !!state.doc.memos[state.currentId]?.hidden }),
-  scrollToOffset,
+  // 書式を付けて表示している間は、選んだときに見える場所まで送っている
+  scrollToOffset: (offset) => {
+    if (!state.live) scrollToOffset(offset);
+  },
   onHide: hideMemo,
-  onJump: () => showEditor(),
 });
 const menu = createMenu(el.tabMenu);
 
@@ -222,12 +249,15 @@ async function init() {
   if (view === 'popup' && state.prefs.openIn === 'panel') chrome.action.setPopup({ popup: '' }).catch(() => {});
   renderTabs();
   showCurrent();
+  if (base.ui?.live) setLive(true);
   renderStatus(base.status);
   renderAlert(base.alert);
   renderDeliveryError(base.deliveryError);
   // 読み込みが終わるまでは書けないようにしている（メモが決まる前の入力が保存されないため）
   el.memo.readOnly = false;
   el.memo.placeholder = 'ここに書くと自動で保存します';
+  live.setEditable(true);
+  live.setPlaceholder(el.memo.placeholder);
   state.ready = true;
   focusEditor();
   loadGroupColors();
@@ -386,7 +416,7 @@ function renderTabs() {
       // タブの並びは Tab キー 1 回で入り、←→ で移る（選んでいるタブだけを止まり先にする）
       button.setAttribute('role', 'tab');
       button.setAttribute('aria-selected', String(id === state.currentId));
-      button.setAttribute('aria-controls', 'memo');
+      button.setAttribute('aria-controls', state.live ? 'live' : 'memo');
       button.tabIndex = id === current ? 0 : -1;
       decorateTab(button, id);
       button.addEventListener('click', () => {
@@ -518,8 +548,7 @@ async function createGroup(id, name) {
     await readStorage();
     state.group = name;
     select(created);
-    showEditor();
-    el.memo.focus();
+    focusEditor();
     showNotice(`グループ「${name}」を作りました`);
   } catch (error) {
     showNotice(errorText(error), 'error');
@@ -656,7 +685,7 @@ function lockIcon() {
 }
 
 function saveUi() {
-  chrome.storage.local.set({ ui: { currentId: state.currentId, group: state.group } });
+  chrome.storage.local.set({ ui: { currentId: state.currentId, group: state.group, live: state.live } });
 }
 
 function select(id, { force = false } = {}) {
@@ -677,7 +706,7 @@ function select(id, { force = false } = {}) {
 
 function focusEditor() {
   if (isVeiled()) el.veilShow.focus();
-  else if (state.preview) el.preview.focus();
+  else if (state.live) live.focus();
   else el.memo.focus();
 }
 
@@ -877,12 +906,12 @@ function moveToNeighbor() {
 function showCurrent() {
   const memo = state.doc.memos[state.currentId];
   el.memo.value = memo && !memo.deleted ? memo.text : '';
+  live.setText(el.memo.value);
   state.pendingExternal = false;
   updateLinks();
   updateCount();
   strip.render(state.doc, state.currentId, state.mode);
   renderVeil();
-  refreshPreview();
 }
 
 // 他の端末（または別の画面）で変わった内容を入力欄に映す。
@@ -890,7 +919,7 @@ function showCurrent() {
 function applyExternal() {
   const memo = state.doc.memos[state.currentId];
   if (!memo || memo.deleted || memo.text === el.memo.value || state.sent.includes(memo.text)) return;
-  if (state.composing) {
+  if (state.composing || live.composing()) {
     state.pendingExternal = true;
     return;
   }
@@ -920,18 +949,21 @@ function replaceEditorText(next) {
     el.memo.setSelectionRange(Math.min(selectionStart, next.length), Math.min(selectionEnd, next.length));
   }
   el.memo.scrollTop = scrollTop;
+  if (state.live) live.applyText(next);
   updateLinks();
   updateCount();
   sensitive.schedule();
-  refreshPreview();
 }
 
 // ---- 検索の結果を開く ----
 
 function openResult({ id, start, end }) {
   if (!visibleIds(state.doc).includes(id)) return;
-  showEditor();
   select(id, { force: true });
+  if (state.live) {
+    live.select(start, end);
+    return;
+  }
   el.memo.focus();
   el.memo.setSelectionRange(start, end);
   scrollToOffset(start);
@@ -972,9 +1004,11 @@ function syncRoom() {
 // Chrome 同期の容量が残り少ないときは、残りの文字数も出す
 function updateCount() {
   const chars = (text) => [...text.replace(/\n/g, '')].length;
-  const { value, selectionStart, selectionEnd } = el.memo;
+  const { value } = el.memo;
+  const { start, end } = state.live ? live.selection() : { start: el.memo.selectionStart, end: el.memo.selectionEnd };
+  const focused = state.live ? live.hasFocus() : document.activeElement === el.memo;
   const total = chars(value);
-  const selected = document.activeElement === el.memo && selectionEnd > selectionStart ? chars(value.slice(selectionStart, selectionEnd)) : 0;
+  const selected = focused && end > start ? chars(value.slice(start, end)) : 0;
   const room = syncRoom();
   const left = room && room.ratio >= 0.7 ? `・残り約 ${room.chars.toLocaleString()} 字` : '';
   el.count.textContent = (selected ? `${selected.toLocaleString()} / ${total.toLocaleString()} 文字` : `${total.toLocaleString()} 文字`) + left;
@@ -1173,7 +1207,7 @@ async function showShortcuts() {
 let alertTarget = 'conflict';
 function renderAlert(alert) {
   if (alert?.kind !== 'conflict') {
-    closeBar(el.alert, el.memo);
+    closeBar(el.alert, memoInput);
     return;
   }
   const titles = (alert.titles ?? []).map((title) => `「${title || '空のメモ'}」`);
@@ -1185,7 +1219,7 @@ function renderAlert(alert) {
 
 function dismissAlert() {
   chrome.storage.local.remove('alert');
-  closeBar(el.alert, el.memo);
+  closeBar(el.alert, memoInput);
 }
 
 // ---- 入力と操作 ----
@@ -1267,30 +1301,39 @@ function undoReplace(changes) {
 
 // ---- 書式を付けて表示 ----
 
-function refreshPreview() {
-  if (state.preview && !isVeiled()) preview.render();
+// 画像が読み込めたときなど、本文は同じで見た目だけを作り直す
+function repaintLive() {
+  if (state.live) live.repaint();
 }
 
-// 編集と、書式を付けた表示を切り替える。focus が true なら、切り替えた先へフォーカスを移す
-function setPreview(on, { focus = false } = {}) {
-  state.preview = on;
-  el.editor.classList.toggle('previewing', on);
-  el.preview.hidden = !on;
+// 記号のまま表示する入力欄と、書式を付けたまま書ける入力欄を切り替える。
+// カーソルの場所はそのまま移す。focus が true か、切り替える前に入力欄にいたら、切り替えた先へフォーカスを移す
+function setLive(on, { focus = false } = {}) {
+  if (on === state.live) {
+    if (focus) focusEditor();
+    return;
+  }
+  const hadFocus = state.live ? live.hasFocus() : document.activeElement === el.memo;
+  const { start, end } = state.live ? live.selection() : { start: el.memo.selectionStart, end: el.memo.selectionEnd };
+  state.live = on;
+  el.editor.classList.toggle('live', on);
+  el.live.hidden = !on;
   el.togglePreview.setAttribute('aria-pressed', String(on));
-  refreshPreview();
-  if (focus) focusEditor();
-}
-
-// 入力欄を使う操作（文字を入れる・見つけた場所を選ぶ）の前に、編集に戻す
-function showEditor() {
-  if (state.preview) setPreview(false);
-}
-
-// 表示の中のチェックボックスを押したとき。本文の [ ] と [x] を入れ替えて保存する
-function onToggleTask(line) {
-  const next = toggleTask(el.memo.value, line);
-  if (next === null) refreshPreview();
-  else setMemoText(state.currentId, next);
+  const moveFocus = (focus || hadFocus) && !isVeiled();
+  if (on) {
+    if (live.getText() !== el.memo.value) live.setText(el.memo.value);
+    // 書いている途中でなければ、カーソルの場所まで送らない（読んでいた場所から動かさない）
+    live.select(start, end, { focus: moveFocus, scroll: moveFocus });
+  } else {
+    el.memo.setSelectionRange(start, end);
+    if (moveFocus) {
+      el.memo.focus();
+      scrollToOffset(start);
+    }
+  }
+  saveUi();
+  renderTabs();
+  updateCount();
 }
 
 // ---- 名前・グループ ----
@@ -1456,7 +1499,6 @@ function renderVeil() {
   el.toggleVeil.setAttribute('aria-label', label);
   for (const control of [el.insertTime, el.insertUrl, el.togglePreview]) control.disabled = veiled;
   sensitive.refresh();
-  refreshPreview();
 }
 
 function reveal() {
@@ -1483,7 +1525,10 @@ function hideMemo(id) {
 
 // カーソルの位置に文字を入れる（選択中の文字は消さず、その前に入れる）
 function insertText(text) {
-  showEditor();
+  if (state.live) {
+    live.insert(text);
+    return;
+  }
   el.memo.focus();
   const start = el.memo.selectionStart;
   el.memo.setSelectionRange(start, start);
@@ -1523,6 +1568,49 @@ async function insertCurrentUrl() {
 }
 
 el.memo.addEventListener('input', onInput);
+
+// ⌘B・⌘I・⌘⇧X・⌘⇧C で書式を付け外しし、Tab と Shift+Tab で字下げを変える（書式付きの入力欄と同じ）。
+// キーボードだけで使う人のために、Esc を押してから 2 秒以内の Tab は、ふだんどおり次の部品へ移る
+const ESCAPE_TAB_FOR = 2000;
+let escapedAt = 0;
+el.memo.addEventListener('keydown', (event) => {
+  if (event.isComposing || el.memo.readOnly) return;
+  if (event.key === 'Escape') {
+    escapedAt = Date.now();
+    return;
+  }
+  const { selectionStart: start, selectionEnd: end, selectionDirection } = el.memo;
+  const [anchor, head] = selectionDirection === 'backward' ? [end, start] : [start, end];
+  const mod = isMac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
+  const key = event.key.toLowerCase();
+  let result;
+  if (mod && !event.altKey) {
+    const kind = event.shiftKey ? { x: 'strike', c: 'code' }[key] : { b: 'bold', i: 'italic' }[key];
+    if (!kind) return;
+    result = toggleInline(el.memo.value, anchor, head, kind);
+  } else if (event.key === 'Tab' && !event.altKey && !event.ctrlKey && !event.metaKey) {
+    if (Date.now() - escapedAt < ESCAPE_TAB_FOR) return;
+    result = indentLines(el.memo.value, anchor, head, { outdent: event.shiftKey });
+  } else {
+    return;
+  }
+  event.preventDefault();
+  if (result) editTextarea(result);
+});
+
+// lib/edit-keys.js の書き換えを、入力欄に当てる。execCommand で書き換えて「元に戻す」を効かせる
+function editTextarea({ changes, selection }) {
+  const from = changes[0].from;
+  const to = changes.at(-1).to;
+  const insert = applyChanges(el.memo.value.slice(from, to), changes.map((change) => ({ ...change, from: change.from - from, to: change.to - from })));
+  el.memo.setSelectionRange(from, to);
+  if (!document.execCommand('insertText', false, insert)) {
+    el.memo.setRangeText(insert, from, to, 'end');
+    onInput();
+  }
+  const { anchor, head } = selection;
+  el.memo.setSelectionRange(Math.min(anchor, head), Math.max(anchor, head), anchor > head ? 'backward' : 'forward');
+}
 // 選んだ文字数を出すため
 document.addEventListener('selectionchange', () => {
   if (document.activeElement === el.memo) updateCount();
@@ -1530,20 +1618,23 @@ document.addEventListener('selectionchange', () => {
 for (const type of ['select', 'keyup', 'mouseup', 'blur']) el.memo.addEventListener(type, updateCount);
 
 // ポップアップでは、入力欄の右下をドラッグして変えた高さを覚えておく（画像を貼っても変わらない）。
-// ドラッグで変えると入力欄に直接高さが書かれるので、それを設定に移す
+// ドラッグで変えると入力欄に直接高さが書かれるので、それを設定に移す。書式を付けて表示している間の入力欄も同じ
 if (view === 'popup') {
   let heightTimer;
-  new ResizeObserver(() => {
-    if (!el.memo.style.height) return;
+  const observer = new ResizeObserver((entries) => {
+    const box = entries.map((entry) => entry.target).find((target) => target.style.height);
+    if (!box) return;
     clearTimeout(heightTimer);
     heightTimer = setTimeout(async () => {
-      const height = Math.min(480, Math.max(120, Math.round(el.memo.offsetHeight)));
+      const height = Math.min(480, Math.max(120, Math.round(box.offsetHeight)));
       document.documentElement.style.setProperty('--memo-height', `${height}px`);
-      el.memo.style.removeProperty('height');
+      box.style.removeProperty('height');
       const { prefs } = await chrome.storage.local.get('prefs');
       await chrome.storage.local.set({ prefs: { ...prefs, memoHeight: height } });
     }, 400);
-  }).observe(el.memo);
+  });
+  observer.observe(el.memo);
+  observer.observe(el.live);
 }
 
 // 置換は Windows などでは Ctrl+H。Mac の ⌘H はアプリを隠し、Ctrl+H は 1 文字消すので、⌘⇧H にする
@@ -1551,14 +1642,14 @@ const isMac = /Mac/.test(navigator.platform);
 el.openSearch.title = `すべてのメモから探す ${isMac ? '⌘F' : 'Ctrl+F'}`;
 $('replace-toggle').title = `置換後の文字の欄を出す ${isMac ? '⌘⇧H' : 'Ctrl+H'}`;
 el.togglePreview.title = `書式を付けて表示 ${isMac ? '⌘E' : 'Ctrl+E'}`;
-el.togglePreview.addEventListener('click', () => setPreview(!state.preview));
+el.togglePreview.addEventListener('click', () => setLive(!state.live));
 document.addEventListener('keydown', (event) => {
   if (event.altKey || event.isComposing) return;
   const key = event.key.toLowerCase();
-  // 書式を付けた表示と編集を切り替える。探している間と、隠しているメモでは切り替えない
+  // 書式を付けて表示と、記号のまま表示を切り替える。探している間と、隠しているメモでは切り替えない
   if (key === 'e' && !event.shiftKey && (isMac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey)) {
     event.preventDefault();
-    if (!search.isOpen() && !isVeiled()) setPreview(!state.preview, { focus: true });
+    if (!search.isOpen() && !isVeiled()) setLive(!state.live, { focus: true });
     return;
   }
   const findKey = key === 'f' && (event.metaKey || event.ctrlKey) && !event.shiftKey;
@@ -1691,9 +1782,7 @@ el.add.addEventListener('click', () =>
       const id = await send('add', { group: state.group ?? undefined });
       await readStorage();
       select(id);
-      // 新しいメモはすぐ書くので、書式を付けた表示から編集に戻す
-      showEditor();
-      el.memo.focus();
+      focusEditor();
     } catch (error) {
       showNotice(errorText(error), 'error');
     }

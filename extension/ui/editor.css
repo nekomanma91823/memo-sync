@@ -13,7 +13,7 @@ body[data-view="popup"] .editor {
   overflow-y: auto;
 }
 
-body[data-view="popup"] :is(#memo, .veil, .search-results, .preview) {
+body[data-view="popup"] :is(#memo, .veil, .search-results, .live-box) {
   flex: 0 1 auto;
   min-height: 120px;
 }
@@ -766,111 +766,196 @@ body[data-view="panel"] #memo {
   resize: none;
 }
 
-/* 書式を付けて表示する欄。入力欄と同じ場所に、同じ高さ・同じ文字の大きさで出す */
-.editor.previewing #memo,
-.editor:is(.veiled, .searching) .preview {
+/* 書式を付けて表示している間の入力欄（live-editor.js）。記号のまま表示する入力欄と同じ場所に、同じ高さ・同じ文字の大きさで出す */
+.editor.live #memo,
+.editor:is(.veiled, .searching) .live-box {
   display: none;
 }
 
-.preview {
+.live-box {
   height: var(--memo-height, 300px);
-  overflow: auto;
-  padding: 10px 12px;
   font-size: 1rem;
   line-height: 1.7;
   color: var(--text);
-  background: var(--bg);
   overflow-wrap: anywhere;
+  background: var(--bg);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
 }
 
-:root[data-text-size="small"] .preview {
+.live-box:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+:root[data-text-size="small"] .live-box {
   font-size: 0.875rem;
 }
 
-:root[data-text-size="large"] .preview {
+:root[data-text-size="large"] .live-box {
   font-size: 1.125rem;
 }
 
-body[data-view="panel"] .preview {
+/* ポップアップでは、記号のまま表示する入力欄と同じく、右下をドラッグして高さを変えられる */
+body[data-view="popup"] .live-box {
+  overflow: hidden;
+  resize: vertical;
+}
+
+body[data-view="panel"] .live-box {
   flex: 1;
   height: auto;
   min-height: 160px;
 }
 
-.preview > :first-child {
-  margin-top: 0;
+/* CodeMirror がもともと付ける見た目より強くするため、.cm-editor から書く */
+.live-box .cm-editor {
+  height: 100%;
+  border-radius: inherit;
 }
 
-.preview > :last-child {
-  margin-bottom: 0;
+.live-box .cm-editor.cm-focused {
+  outline: none;
 }
 
-.preview :is(h1, h2, h3, h4, h5, h6) {
-  margin: 1em 0 0.4em;
-  font-size: 1em;
-  line-height: 1.4;
+.live-box .cm-editor .cm-scroller {
+  font-family: inherit;
+  line-height: inherit;
 }
 
-.preview h1 {
+.live-box .cm-editor .cm-content {
+  padding: 10px 0;
+  caret-color: var(--text);
+}
+
+.live-box .cm-editor .cm-line {
+  padding: 0 12px;
+}
+
+.live-box .cm-editor .cm-placeholder {
+  color: var(--muted);
+}
+
+/* 見出しの行。記号を見せている間も、同じ大きさのままにする */
+.live-box .cm-editor :is(.cm-md-h1, .cm-md-h2, .cm-md-h3, .cm-md-h4, .cm-md-h5, .cm-md-h6) {
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.live-box .cm-editor .cm-md-h1 {
   font-size: 1.375em;
 }
 
-.preview h2 {
+.live-box .cm-editor .cm-md-h2 {
   font-size: 1.2em;
 }
 
-.preview h3 {
+.live-box .cm-editor .cm-md-h3 {
   font-size: 1.075em;
 }
 
-/* :where で詳細度を上げない（入れ子のリストの余白を下で 0 にするため） */
-.preview :where(p, ul, ol, blockquote, pre, .preview-table) {
-  margin: 0 0 0.75em;
+.live-box .cm-md-strong {
+  font-weight: 700;
 }
 
-.preview :is(ul, ol) {
-  padding-left: 1.5em;
-}
-
-.preview li > :is(ul, ol) {
-  margin: 0;
-}
-
-/* チェックボックスの項目は、点の場所にチェックボックスを置く。済んだ項目は薄くして線を引く */
-.preview li.task {
-  position: relative;
-  list-style: none;
-}
-
-.preview li.task > input {
-  position: absolute;
-  top: 0.4em;
-  left: -1.45em;
-  width: 1.05em;
-  height: 1.05em;
-  margin: 0;
-  accent-color: var(--accent);
-  cursor: pointer;
+.live-box .cm-md-em {
+  font-style: italic;
 }
 
 /* 取り消し線は、画数の多い漢字に紛れないよう、文字を薄くして線を濃く太めにする */
-.preview s,
-.preview li.task > input:checked + span {
+.live-box :is(.cm-md-del, .cm-md-done) {
   color: var(--muted);
   text-decoration: line-through;
   text-decoration-color: var(--text);
   text-decoration-thickness: 0.08em;
 }
 
-.preview blockquote {
-  padding-left: 0.9em;
-  color: var(--muted);
-  border-left: 3px solid var(--border-strong);
+.live-box .cm-md-code {
+  padding: 0.1em 0.2em;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  background: var(--surface);
+  border-radius: 4px;
 }
 
-.preview code {
+.live-box .cm-md-link {
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* 見せている間の記号は薄くする */
+.live-box .cm-md-marker,
+.live-box .cm-md-bullet {
+  color: var(--muted);
+}
+
+.live-box .cm-md-mark {
+  color: var(--muted);
+}
+
+.live-box .cm-editor .cm-md-quote {
+  padding-left: calc(12px + 0.9em);
+  color: var(--muted);
+  background: linear-gradient(var(--border-strong), var(--border-strong)) 12px 0 / 3px 100% no-repeat;
+}
+
+.live-box .cm-editor :is(.cm-md-codeblock, .cm-md-fence, .cm-md-table) {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.live-box .cm-editor :is(.cm-md-codeblock, .cm-md-fence) {
+  background: var(--surface);
+}
+
+.live-box .cm-editor .cm-md-fence {
+  color: var(--muted);
+}
+
+/* 区切り線の行は、記号を隠して線を引く */
+.live-box .cm-editor .cm-md-hr {
+  background: linear-gradient(var(--border-strong), var(--border-strong)) center / calc(100% - 24px) 1px no-repeat;
+}
+
+.live-box .cm-md-task {
+  width: 1.05em;
+  height: 1.05em;
+  margin: 0 0.2em 0 0;
+  vertical-align: -0.15em;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.live-box .cm-md-table-view {
+  padding: 2px 12px;
+}
+
+/* 表。幅の広い表は、表だけを横に送る */
+.preview-table {
+  overflow-x: auto;
+  line-height: 1.6;
+}
+
+.preview-table table {
+  border-collapse: collapse;
+}
+
+.preview-table :is(th, td) {
+  padding: 4px 8px;
+  border: 1px solid var(--border-strong);
+}
+
+.preview-table th {
+  background: var(--surface);
+}
+
+.preview-table a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.preview-table code {
   padding: 0.1em 0.3em;
   font-family: ui-monospace, Menlo, Consolas, monospace;
   font-size: 0.9em;
@@ -878,45 +963,9 @@ body[data-view="panel"] .preview {
   border-radius: 4px;
 }
 
-.preview pre {
-  padding: 8px 10px;
-  overflow-x: auto;
-  line-height: 1.5;
-  background: var(--surface);
-  border-radius: var(--radius);
-}
-
-.preview pre code {
-  padding: 0;
-  background: none;
-}
-
-.preview hr {
-  margin: 1em 0;
-  border: 0;
-  border-top: 1px solid var(--border-strong);
-}
-
-.preview-table {
-  overflow-x: auto;
-}
-
-.preview table {
-  border-collapse: collapse;
-}
-
-.preview :is(th, td) {
-  padding: 4px 8px;
-  border: 1px solid var(--border-strong);
-}
-
-.preview th {
-  background: var(--surface);
-}
-
-.preview a {
-  color: var(--accent);
-  text-decoration: underline;
+.preview-table s {
+  color: var(--muted);
+  text-decoration-color: var(--text);
 }
 
 /* 貼った画像。押すと大きく表示する */
@@ -935,10 +984,6 @@ body[data-view="panel"] .preview {
   max-width: 100%;
   max-height: 240px;
   border-radius: inherit;
-}
-
-.preview-empty {
-  color: var(--muted);
 }
 
 /* 貼った画像（文章の下に 1 列に並べ、多いときは横に送る。入力欄の高さを削らないため）。
@@ -1027,12 +1072,12 @@ body[data-view="panel"] .preview {
 }
 
 /* 画像のファイルを持ってきている間。落とせないとき（隠しているメモ・Chrome 同期）は赤い枠にする */
-.editor.dropping :is(#memo, .veil) {
+.editor.dropping :is(#memo, .live-box, .veil) {
   outline: 2px dashed var(--accent);
   outline-offset: 2px;
 }
 
-.editor.dropping.drop-blocked :is(#memo, .veil) {
+.editor.dropping.drop-blocked :is(#memo, .live-box, .veil) {
   outline-color: var(--danger);
 }
 

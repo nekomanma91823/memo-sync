@@ -1,11 +1,8 @@
-// メモを書式を付けて表示する部分（ポップアップとサイドパネルで共通）。
-// 本文は lib/markdown.js で読み、要素を 1 つずつ作る（HTML の文字列は使わない）。
-// チェックボックスを押すと、本文の [ ] と [x] を入れ替える。[画像 1] の印には、その画像を出す。
+// 書式を付けて表示している間に、表を組んで見せる部分（ポップアップとサイドパネルで共通）。
+// 本文は lib/markdown.js で読み、要素を 1 つずつ作る（HTML の文字列は使わない）。[画像 1] の印には、その画像を出す。
 // 外のサイトの画像は読み込まない（開いただけで相手にアクセスが伝わるため）。リンクとして出す。
 
-import { parseInline, parseMarkdown, safeHref } from '../lib/markdown.js';
-
-const $ = (id) => document.getElementById(id);
+import { parseInline, safeHref } from '../lib/markdown.js';
 
 function node(tag, className, children = []) {
   const element = document.createElement(tag);
@@ -14,11 +11,8 @@ function node(tag, className, children = []) {
   return element;
 }
 
-// getText() は表示中のメモの本文、onToggleTask(line) はチェックボックスを押したとき（line は本文の何行目か）、
 // imageUrl(no) は [画像 no] の画像の URL（まだ無ければ null）、openImage(no) は画像を押したとき
-export function createPreview({ getText, onToggleTask, imageUrl, openImage }) {
-  const box = $('preview');
-
+export function createRenderer({ imageUrl, openImage }) {
   function inline(nodes) {
     return nodes.map((item) => {
       switch (item.type) {
@@ -64,41 +58,14 @@ export function createPreview({ getText, onToggleTask, imageUrl, openImage }) {
     img.alt = `画像 ${no}`;
     const button = node('button', 'preview-image', [img]);
     button.type = 'button';
+    button.tabIndex = -1;
     button.title = `画像 ${no} を大きく表示`;
+    button.addEventListener('mousedown', (event) => event.preventDefault());
     button.addEventListener('click', () => openImage(no));
     return button;
   }
 
   const lineOf = (text) => inline(parseInline(text.trim()));
-
-  function withBreaks(lines) {
-    return lines.flatMap((text, i) => (i ? [node('br'), ...lineOf(text)] : lineOf(text)));
-  }
-
-  function list(block) {
-    const element = node(block.ordered ? 'ol' : 'ul');
-    if (block.ordered && block.start !== 1) element.start = block.start;
-    for (const item of block.items) {
-      const li = node('li');
-      if (item.task !== null) {
-        li.className = 'task';
-        const box = node('input');
-        box.type = 'checkbox';
-        box.checked = item.task;
-        box.dataset.line = String(item.line);
-        const label = node('span', '', withBreaks(item.lines));
-        label.id = `preview-task-${item.line}`;
-        box.setAttribute('aria-labelledby', label.id);
-        box.addEventListener('change', () => onToggleTask(item.line));
-        li.append(box, label);
-      } else {
-        li.append(...withBreaks(item.lines));
-      }
-      li.append(...item.lists.map(list));
-      element.append(li);
-    }
-    return element;
-  }
 
   function table(block) {
     const cell = (tag, text, n) => {
@@ -112,42 +79,5 @@ export function createPreview({ getText, onToggleTask, imageUrl, openImage }) {
     return node('div', 'preview-table', [node('table', '', [head, body])]);
   }
 
-  function blocks(items) {
-    return items.map((block) => {
-      switch (block.type) {
-        case 'heading':
-          return node(`h${block.level}`, '', lineOf(block.text));
-        case 'paragraph':
-          return node('p', '', withBreaks(block.lines));
-        case 'code':
-          return node('pre', '', [node('code', '', [block.text])]);
-        case 'hr':
-          return node('hr');
-        case 'quote':
-          return node('blockquote', '', blocks(block.blocks));
-        case 'list':
-          return list(block);
-        case 'table':
-          return table(block);
-        default:
-          return node('div');
-      }
-    });
-  }
-
-  // 作り直しても、スクロールの位置と、押していたチェックボックスのフォーカスを保つ
-  function render() {
-    const text = getText();
-    const { scrollTop } = box;
-    const inside = box.contains(document.activeElement) && document.activeElement !== box;
-    const focusedLine = inside ? document.activeElement.dataset?.line : undefined;
-    box.replaceChildren(...(text.trim() ? blocks(parseMarkdown(text)) : [node('p', 'preview-empty', ['まだ何も書いていません。'])]));
-    box.scrollTop = scrollTop;
-    // 中のリンクや画像にフォーカスがあったときは、作り直した後は表示の枠に戻す（どこにも無い状態にしない）
-    const again = focusedLine === undefined ? null : box.querySelector(`input[data-line="${focusedLine}"]`);
-    if (again) again.focus();
-    else if (inside) box.focus();
-  }
-
-  return { render };
+  return { table, image };
 }

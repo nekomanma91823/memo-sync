@@ -10,7 +10,9 @@ Git の設定を 1 つ足します。`extension/manifest.json` の OAuth クラ�
 自分のクライアント ID を公開のリポジトリに載せないためです。手元のファイルには本物の ID が残るので、開発中も Google ドライブ同期を試せます。
 しくみは `tools/client-id-filter.mjs` の先頭に書いてあります。
 
-外部のライブラリは使っていないので、`npm install` はいりません。
+拡張機能を読み込むのにも、テストを動かすのにも、`npm install` はいりません。
+書式を付けて表示するときの入力欄に使う CodeMirror は、1 つのファイルにまとめて `extension/vendor/` に入れてあります。
+`npm install` がいるのは、CodeMirror を新しくするときだけです。手順は「[CodeMirror を新しくする](#codemirror-を新しくする)」にあります。
 
 ## Chrome に読み込む
 
@@ -80,6 +82,8 @@ memo-sync/
 │   │   ├── chrome-sync.js  同期の方式 1：Chrome の同期機能。8KB ごとに分けて保存する
 │   │   ├── drive-sync.js   同期の方式 2：Google ドライブのアプリ専用フォルダ
 │   │   ├── markdown.js     Markdown の読み取りと、書式付きコピー・記号を外したコピーへの変換
+│   │   ├── live-marks.js   書式を付けて表示している間に、どこに書式を付け、どの記号を隠すか
+│   │   ├── edit-keys.js    ⌘B などの書式の付け外しと、Tab の字下げ
 │   │   ├── search.js       すべてのメモからの検索と置換
 │   │   ├── sensitive.js    パスワード・API キー・個人情報らしい文字の検出
 │   │   ├── copy-format.js  「コピー」で作る文章の形
@@ -87,17 +91,29 @@ memo-sync/
 │   │   └── そのほかの小さな部品
 │   ├── ui/               ポップアップ・サイドパネル・設定画面
 │   │   ├── editor.js       メモの画面の中心
-│   │   ├── preview.js      書式を付けて表示
+│   │   ├── live-editor.js  書式を付けて表示している間の入力欄。CodeMirror で作る
+│   │   ├── preview.js      書式を付けて表示している間の表と画像
 │   │   ├── search.js       探す欄と置換の欄
 │   │   └── memo-copy.js, images.js, menu.js, notice.js など
+│   ├── vendor/           CodeMirror をまとめたものと、そのライセンスの文。npm run vendor で作る。直接は書き換えない
 │   └── icons/
 ├── test/                 node --test で動くテスト
-├── tools/                アイコン作成、ストア提出用の zip 作成、クライアント ID の置き換え
+├── tools/                アイコン作成、ストア提出用の zip 作成、クライアント ID の置き換え、CodeMirror のまとめ
 ├── docs/                 この手引き、ストアに出す手順、プライバシーポリシー、画面の用語集
 └── private/              秘密鍵とクライアント ID の控え。Git には入らない
 ```
 
 画面の文を書くときは、[用語集](glossary.md) の語を使います。括弧で補足せず、文を分けて書きます。
+
+## CodeMirror を新しくする
+
+1. `package.json` の `@codemirror/state`・`@codemirror/view`・`@codemirror/commands` の版を変えて、`npm install` を実行する。出てから 2 週間ほどたった版を選びます
+2. `npm run vendor` を実行する。`extension/vendor/codemirror.js` と、ライセンスの文の `codemirror.LICENSE.txt` を作り直します
+3. `npm test` を実行し、Chrome に読み込み直して、書式を付けて表示したまま書けるかを確かめる
+
+`npm run vendor` は、CodeMirror の部品の style-mod を 1 か所だけ書き換えます。
+拡張機能の画面は、ページの中に書いたスタイルを読み込まない決まりにしているので、見た目をスクリプトから作るスタイルシートで入れるためです。
+書き換える場所が見つからないときは、止まって知らせます。
 
 ## 同期のしくみ
 

@@ -13,7 +13,8 @@ const INFO_FOR = 4_000;
 const ACTION_FOR = 12_000;
 const MIN_LEFT = 1_000; // 止めたあとに残す時間の下限（離れた途端に消えないように）
 
-export function createNotices() {
+// focusEditor() は、入力欄にフォーカスを移す（お知らせを消すときに、中のボタンから戻す先）
+export function createNotices({ focusEditor = () => $('memo')?.focus() } = {}) {
   const el = {
     bar: $('notice-bar'),
     text: $('notice'),
@@ -31,7 +32,7 @@ export function createNotices() {
   function paint(notice) {
     current = notice;
     // 消すときに中のボタンにフォーカスがあれば、入力欄へ移す（見えないボタンに残さない）
-    if (!notice && el.bar.contains(document.activeElement)) $('memo')?.focus();
+    if (!notice && el.bar.contains(document.activeElement)) focusEditor();
     el.bar.className = notice ? `notice-bar ${notice.tone}` : 'notice-bar empty';
     if (!notice) {
       el.text.textContent = '';

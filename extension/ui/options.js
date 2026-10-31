@@ -380,6 +380,10 @@ async function renderShortcut() {
   $('shortcut-search').textContent = isMac ? '⌘F' : 'Ctrl+F';
   $('shortcut-replace').textContent = isMac ? '⌘⇧H' : 'Ctrl+H';
   $('shortcut-preview').textContent = isMac ? '⌘E' : 'Ctrl+E';
+  $('shortcut-bold').textContent = isMac ? '⌘B' : 'Ctrl+B';
+  $('shortcut-italic').textContent = isMac ? '⌘I' : 'Ctrl+I';
+  $('shortcut-strike').textContent = isMac ? '⌘⇧X' : 'Ctrl+Shift+X';
+  $('shortcut-code').textContent = isMac ? '⌘⇧C' : 'Ctrl+Shift+C';
 }
 
 // ショートカットは Chrome の画面でしか変えられない

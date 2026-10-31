@@ -26,6 +26,7 @@ const WORD_RE = /[A-Za-z0-9]/;
 // ---- 塊（見出し・段落・リストなど）に分ける ----
 
 // 塊ごとに、前の塊との間にあった空行の数を gap に持つ（記号を外した文字で、空行をそのまま残すため）。
+// 塊は、本文の何行目から何行目の手前までか（0 から）を line と end に持つ（書式を付けたまま書く欄で使う）。
 // リストの項目は、本文の何行目か（0 から）を line に持つ（表示の中のチェックボックスで本文を書き換えるため）
 export function parseMarkdown(text) {
   return parseBlocks(String(text ?? '').replace(/\r\n?/g, '\n').split('\n'), 0);
@@ -36,12 +37,14 @@ function parseBlocks(lines, base) {
   const blocks = [];
   let gap = 0;
   let i = 0;
-  const push = (block) => {
-    blocks.push({ ...block, gap: blocks.length ? gap : 0 });
+  // 塊を読み終えて i を進めてから呼ぶ
+  const push = (block, start) => {
+    blocks.push({ ...block, line: base + start, end: base + i, gap: blocks.length ? gap : 0 });
     gap = 0;
   };
   while (i < lines.length) {
     const line = lines[i];
+    const start = i;
     if (!line.trim()) {
       gap++;
       i++;
@@ -52,45 +55,44 @@ function parseBlocks(lines, base) {
       const body = [];
       i++;
       while (i < lines.length && !isClosingFence(lines[i], fence.marker)) body.push(lines[i++]);
-      i++; // 閉じの行。閉じていなければ最後まで
-      push({ type: 'code', lang: fence.lang, text: body.join('\n') });
+      i = Math.min(i + 1, lines.length); // 閉じの行。閉じていなければ最後まで
+      push({ type: 'code', lang: fence.lang, text: body.join('\n') }, start);
       continue;
     }
     const heading = line.match(HEADING_RE);
     if (heading) {
       const content = (heading[2] ?? '').replace(/(^|[ \t　]+)#+$/, '');
-      push({ type: 'heading', level: heading[1].length, text: content });
       i++;
+      push({ type: 'heading', level: heading[1].length, text: content }, start);
       continue;
     }
     if (HR_RE.test(line)) {
-      push({ type: 'hr' });
       i++;
+      push({ type: 'hr' }, start);
       continue;
     }
     if (QUOTE_RE.test(line)) {
-      const start = i;
       const inner = [];
       for (let m; i < lines.length && (m = lines[i].match(QUOTE_RE)); i++) inner.push(m[1]);
-      push({ type: 'quote', blocks: parseBlocks(inner, base + start) });
+      push({ type: 'quote', blocks: parseBlocks(inner, base + start) }, start);
       continue;
     }
     if (ITEM_RE.test(line)) {
       const { list, next } = parseList(lines, i, base);
-      push(list);
       i = next;
+      push(list, start);
       continue;
     }
     if (isTableStart(lines, i)) {
       const { table, next } = parseTable(lines, i);
-      push(table);
       i = next;
+      push(table, start);
       continue;
     }
     const paragraph = [line];
     i++;
     while (i < lines.length && lines[i].trim() && !startsBlock(lines, i)) paragraph.push(lines[i++]);
-    push({ type: 'paragraph', lines: paragraph });
+    push({ type: 'paragraph', lines: paragraph }, start);
   }
   return blocks;
 }
@@ -261,23 +263,34 @@ export function toggleTask(text, line) {
 
 // ---- 行の中（太字・リンクなど） ----
 
-export function parseInline(src) {
+// 部品ごとに、本文の何文字目から何文字目の手前までかを from と to に持つ（base は src[0] が何文字目か）。
+// 書式の部品は、記号の内側を start と stop に持つ。文字の部品は、外した \ の場所を escapes に持つ
+// （書式を付けたまま書く欄で、記号だけを隠すため）
+export function parseInline(src, base = 0) {
   const out = [];
   let text = '';
+  let textFrom = 0;
+  let escapes = [];
   const flush = () => {
-    if (text) out.push({ type: 'text', text });
+    if (text) out.push({ type: 'text', text, from: base + textFrom, to: base + i, ...(escapes.length ? { escapes } : {}) });
     text = '';
+    escapes = [];
+  };
+  const addText = (s, at) => {
+    if (!text) textFrom = at;
+    text += s;
   };
   const add = (node, end) => {
     flush();
-    out.push(node);
+    out.push({ ...node, from: base + i, to: base + end });
     return end;
   };
   let i = 0;
   while (i < src.length) {
     const c = src[i];
     if (c === '\\' && PUNCT.includes(src[i + 1] ?? '')) {
-      text += src[i + 1];
+      addText(src[i + 1], i);
+      escapes.push(base + i);
       i += 2;
       continue;
     }
@@ -285,26 +298,26 @@ export function parseInline(src) {
       const run = src.slice(i).match(/^`+/)[0];
       const end = findRun(src, run, i + run.length);
       if (end === -1) {
-        text += run;
+        addText(run, i);
         i += run.length;
         continue;
       }
       let code = src.slice(i + run.length, end);
       if (code.length > 2 && code.startsWith(' ') && code.endsWith(' ') && code.trim()) code = code.slice(1, -1);
-      i = add({ type: 'code', text: code }, end + run.length);
+      i = add({ type: 'code', text: code, start: base + i + run.length, stop: base + end }, end + run.length);
       continue;
     }
     if (c === '!' && src[i + 1] === '[') {
       const link = matchLink(src, i + 1);
       if (link) {
-        i = add({ type: 'image', alt: plainInline(parseInline(link.text)), src: link.href }, link.end);
+        i = add({ type: 'image', alt: plainInline(parseInline(link.text)), src: link.href, start: base + i + 2, stop: base + link.close }, link.end);
         continue;
       }
     }
     if (c === '[') {
       const link = matchLink(src, i);
       if (link) {
-        i = add({ type: 'link', href: link.href, children: parseInline(link.text) }, link.end);
+        i = add({ type: 'link', href: link.href, children: parseInline(link.text, base + i + 1), start: base + i + 1, stop: base + link.close }, link.end);
         continue;
       }
       const mark = src.slice(i).match(MARK_RE);
@@ -316,7 +329,9 @@ export function parseInline(src) {
     if (c === '<') {
       const auto = src.slice(i).match(/^<((?:https?|mailto):[^\s<>]+)>/i);
       if (auto) {
-        i = add({ type: 'link', href: auto[1], children: [{ type: 'text', text: auto[1] }] }, i + auto[0].length);
+        const start = base + i + 1;
+        const stop = start + auto[1].length;
+        i = add({ type: 'link', href: auto[1], children: [{ type: 'text', text: auto[1], from: start, to: stop }], start, stop }, i + auto[0].length);
         continue;
       }
     }
@@ -324,18 +339,20 @@ export function parseInline(src) {
       const bare = src.slice(i).match(URL_RE);
       if (bare) {
         const url = trimTrailing(bare[0]);
-        i = add({ type: 'link', href: url, children: [{ type: 'text', text: url }] }, i + url.length);
+        const start = base + i;
+        const stop = start + url.length;
+        i = add({ type: 'link', href: url, children: [{ type: 'text', text: url, from: start, to: stop }], start, stop, bare: true }, i + url.length);
         continue;
       }
     }
     if (c === '*' || c === '_' || c === '~') {
-      const emphasis = matchEmphasis(src, i);
+      const emphasis = matchEmphasis(src, i, base);
       if (emphasis) {
         i = add(emphasis.node, emphasis.end);
         continue;
       }
     }
-    text += c;
+    addText(c, i);
     i++;
   }
   flush();
@@ -398,12 +415,12 @@ function matchLink(src, start) {
   if (title) i += title[0].length;
   while (src[i] === ' ') i++;
   if (src[i] !== ')') return null;
-  return { text: src.slice(start + 1, close), href, end: i + 1 };
+  return { text: src.slice(start + 1, close), href, close, end: i + 1 };
 }
 
 // **太字** __太字__ *斜体* _斜体_ ~~取り消し~~。記号のすぐ内側が空白なら書式にしない。
 // 英数字のすぐ後ろの * と _ は書式にしない（2*3*4 や snake_case を崩さない）。_ は閉じの後ろが英数字のときも
-function matchEmphasis(src, i) {
+function matchEmphasis(src, i, base) {
   const c = src[i];
   const double = src[i + 1] === c;
   if (c === '~' && !double) return null;
@@ -435,7 +452,7 @@ function matchEmphasis(src, i) {
     const end = j + marker.length;
     if (c === '_' && WORD_RE.test(src[end] ?? '')) continue;
     const type = c === '~' ? 'del' : double ? 'strong' : 'em';
-    return { node: { type, children: parseInline(src.slice(from, j)) }, end };
+    return { node: { type, children: parseInline(src.slice(from, j), base + from), start: base + from, stop: base + j }, end };
   }
   return null;
 }

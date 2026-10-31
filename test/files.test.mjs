@@ -42,7 +42,7 @@ test('権限は最小限で、ドライブはアプリ専用フォルダの権�
 });
 
 test('画面のスクリプトはメモの文字を HTML として組み立てない', () => {
-  const scripts = ['editor', 'images', 'annotate', 'search', 'memo-copy', 'sensitive-bar', 'notice', 'menu', 'inline-edit', 'export', 'options', 'options-trash', 'options-ui', 'options-backups', 'common', 'theme'];
+  const scripts = ['editor', 'live-editor', 'preview', 'images', 'annotate', 'search', 'memo-copy', 'sensitive-bar', 'notice', 'menu', 'inline-edit', 'export', 'options', 'options-trash', 'options-ui', 'options-backups', 'common', 'theme'];
   for (const path of scripts.map((name) => `ui/${name}.js`)) {
     const code = read(path);
     assert.doesNotMatch(code, /innerHTML|outerHTML|insertAdjacentHTML|document\.write/, path);
@@ -60,4 +60,19 @@ test('見た目の設定は、どの画面でもスタイルより先に当て�
   }
   // light-dark() は Chrome 123 から
   assert.ok(Number(manifest.minimum_chrome_version) >= 123);
+});
+
+test('CodeMirror のまとめは、package.json の版から作り、見た目をページに書かない形にしてある', () => {
+  const pkg = JSON.parse(readFileSync(join(ext, '..', 'package.json'), 'utf8'));
+  const bundle = read('vendor/codemirror.js');
+  const license = read('vendor/codemirror.LICENSE.txt');
+  // 作り直し忘れに気づくため、ライセンスの文に書いた版と package.json の版を比べる
+  for (const name of ['@codemirror/state', '@codemirror/view', '@codemirror/commands']) {
+    assert.ok(license.includes(`${name}@${pkg.devDependencies[name]} (MIT)`), name);
+  }
+  // 拡張機能の画面は <style> を読み込まないので、スクリプトから作るスタイルシートで入れる（tools/build-vendor.mjs）
+  assert.ok(bundle.includes('if (root.adoptedStyleSheets && win.CSSStyleSheet) {'));
+  assert.ok(!bundle.includes('!root.head && root.adoptedStyleSheets'));
+  // 外から読み込んだり、文字をコードとして動かしたりしない
+  assert.doesNotMatch(bundle, /\beval\(|new Function\(|import\(\s*['"`]https?:/);
 });
